@@ -92,9 +92,19 @@
     </div>
 
     <script>
+      const API_KEY = 'my-secret-api-key-123';
+
+      async function fetchWithKey(url) {
+        return fetch(url, {
+          headers: {
+            'x-api-key': API_KEY,
+          },
+        });
+      }
+
       async function testAllAPIs() {
         await testGetStatus();
-        document.getElementById('weekdayIndex').value = 2; // Set default for getDay
+        document.getElementById('weekdayIndex').value = 2;
         await testGetDay();
         await testGetCurrentDay();
         await testGetWeek();
@@ -105,7 +115,7 @@
 
       async function testGetStatus() {
         try {
-          const response = await fetch('http://localhost:3000/api/webuntis');
+          const response = await fetchWithKey('http://localhost:3000/api/webuntis');
           const data = await response.json();
           document.getElementById('getStatusResult').innerHTML =
             '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
@@ -118,7 +128,7 @@
       async function testGetDay() {
         const weekdayIndex = document.getElementById('weekdayIndex').value;
         try {
-          const response = await fetch(
+          const response = await fetchWithKey(
             `http://localhost:3000/api/webuntis/getDay?weekdayIndex=${weekdayIndex}`
           );
           const data = await response.json();
@@ -132,7 +142,7 @@
 
       async function testGetCurrentDay() {
         try {
-          const response = await fetch(
+          const response = await fetchWithKey(
             'http://localhost:3000/api/webuntis/getCurrentDay'
           );
           const data = await response.json();
@@ -146,7 +156,7 @@
 
       async function testGetWeek() {
         try {
-          const response = await fetch(
+          const response = await fetchWithKey(
             'http://localhost:3000/api/webuntis/getWeek'
           );
           const data = await response.json();
@@ -163,8 +173,9 @@
         const url = currentTime
           ? `http://localhost:3000/api/webuntis/getCurrent?currentTime=${encodeURIComponent(currentTime)}`
           : 'http://localhost:3000/api/webuntis/getCurrent';
+
         try {
-          const response = await fetch(url);
+          const response = await fetchWithKey(url);
           const data = await response.json();
           document.getElementById('getCurrentResult').innerHTML =
             '<pre>' + JSON.stringify(data, null, 2) + '</pre>';

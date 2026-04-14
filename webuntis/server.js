@@ -8,36 +8,62 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Hardcoded API Key
+const API_KEY = 'my-secret-api-key-123';
+
+// API Key Middleware
+app.use((req, res, next) => {
+  const clientKey = req.headers['x-api-key'];
+
+  if (!clientKey) {
+    return res.status(401).json({ error: 'Missing API key' });
+  }
+
+  if (clientKey !== API_KEY) {
+    return res.status(403).json({ error: 'Invalid API key' });
+  }
+
+  next();
+});
+
 let scraper;
 
 const initScraper = async () => {
   if (!scraper) {
     console.log();
-    scraper = new WebUntisScraper();
-    await scraper.init();
+    console.log('Initializing WebUntis Scraper...');
+    console.log();
+    try {
+      scraper = new WebUntisScraper();
+      await scraper.init();
+      console.log('WebUntis Scraper initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize WebUntis Scraper:', error);
+      throw error;
+    }
+    console.log();
   }
   return scraper;
 };
 
-initScraper().catch((error) => {
-  console.error('Failed to initialize WebUntis Scraper:', error);
-  process.exit(1);
-});
-
 const closeScraper = async () => {
+  console.log();
   if (scraper) {
     await scraper.close();
     scraper = null;
+    console.log('WebUntis Scraper closed successfully');
+  } else {
+    console.log('No scraper instance to close');
   }
 };
 
+// Routes
 app.get('/api/webuntis', async (req, res) => {
   try {
-    const data = {
+    res.json({
       success: true,
       message: 'WebUntis Scraper API is running',
-    };
-    res.json(data || { error: 'No data found' });
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -93,10 +119,14 @@ app.get('/api/webuntis/getCurrent', async (req, res) => {
   }
 });
 
+// Start server FIRST, then init scraper
 const port = process.env.PORT || 3000;
-const server = app.listen(port, () =>
-  console.log(`Server running on http://localhost:${port}`)
-);
+
+const server = app.listen(port, async () => {
+  console.log(`Server running on http://localhost:${port}`);
+
+  await initScraper();
+});
 
 server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
