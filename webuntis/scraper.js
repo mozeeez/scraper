@@ -39,28 +39,27 @@ class WebUntisScraper {
 
     this.page = await context.newPage();
 
-    console.log('2/5 Navigating...');
-
     await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    console.log('2/5 Page loaded');
 
     // Wait
     await this.page.waitForSelector('.un-input-group__input');
     await this.page.locator('.un-input-group__input').nth(0).fill(username);
     await this.page.locator('.un-input-group__input').nth(1).fill(password);
-    console.log('3/5 Values entered successfully');
+    console.log('3/5 Values entered');
     await this.page.locator('button[type="submit"]').click();
-    console.log('4/5 Login button clicked');
 
     // Wait
     await this.page.waitForLoadState('networkidle');
 
-    // Stundenplan
+    // Timetable
     await this.page.waitForSelector('a.Stundenplan', { state: 'visible' });
+    console.log('4/5 Login successful');
     await this.page.locator('a.Stundenplan').click();
-    console.log('5/5 Stundenplan clicked');
 
     // Wait
     await this.page.waitForLoadState('networkidle');
+    console.log('5/5 Timetable opened');
     console.log();
   }
 
