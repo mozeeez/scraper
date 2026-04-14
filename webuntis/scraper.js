@@ -16,11 +16,11 @@ class WebUntisScraper {
     this.page = null;
   }
 
-  async init() {
+  async open() {
     const startTime = performance.now();
 
     try {
-      console.log('\nInitializing WebUntis Scraper...\n');
+      console.log('\nOpen WebUntis Page...\n');
 
       const username = process.env.WEBUNTIS_USERNAME;
       const password = process.env.WEBUNTIS_PASSWORD;
@@ -68,12 +68,13 @@ class WebUntisScraper {
 
       const endTime = performance.now();
       const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.log(`\n✅ WebUntis Scraper initialized successfully in ${durationSeconds} seconds\n`);
+      console.log(`\n✅ WebUntis opened successfully in ${durationSeconds} seconds\n`);
     } catch (error) {
       const endTime = performance.now();
       const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
       console.error(`\n❌ Error occurred after ${durationSeconds}s:\n`, error.message);
-      await scraper.page.screenshot({ path: 'debug_error__init.png' });
+      await this.page.screenshot({ path: 'debug_error__init.png' });
+      this.restart()
     } finally {
       if (DEBUG) {
         console.log('Debug mode is ON. Keeping the browser open for inspection.\n');
@@ -82,9 +83,25 @@ class WebUntisScraper {
     }
   }
 
-  async close() {
-    if (this.browser) {
-      await this.browser.close();
+  async restart() {
+    console.log('\nRestarting browser session...');
+
+    try {
+      if (this.page) {
+        await this.page.close();
+        this.page = null;
+      }
+
+      if (this.browser) {
+        await this.browser.close();
+        this.browser = null;
+      }
+
+      await this.open();
+
+      console.log('✅ Restart completed successfully\n');
+    } catch (error) {
+      console.error('❌ Restart failed:\n', error.message);
     }
   }
 

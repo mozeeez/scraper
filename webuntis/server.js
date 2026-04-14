@@ -31,20 +31,11 @@ let scraper;
 
 const initScraper = async () => {
   if (!scraper) {
+    console.log('\nInitializing WebUntis Scraper...');
     scraper = new WebUntisScraper();
-    await scraper.init();
+    await scraper.open();
   }
   return scraper;
-};
-
-const closeScraper = async () => {
-  if (scraper) {
-    await scraper.close();
-    scraper = null;
-    console.log('WebUntis Scraper closed successfully');
-  } else {
-    console.log('No scraper instance to close');
-  }
 };
 
 // Routes
@@ -54,6 +45,8 @@ app.get('/api/webuntis', async (req, res) => {
       success: true,
       message: 'WebUntis Scraper API is running',
     });
+    const scraperInstance = await initScraper();
+    await scraperInstance.restart();
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
