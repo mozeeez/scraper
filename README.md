@@ -13,6 +13,10 @@
    ```bash
    npm install
    ```
+3. Install Playwright browsers (required):
+   ```bash
+   npx playwright install
+   ```
 
 ## 2. Start
 
