@@ -30,3 +30,23 @@
    ```text
    http://localhost:3000
    ```
+
+## 3. Docker
+
+### Build
+
+```bash
+docker compose up --build
+```
+
+### Start
+
+```bash
+docker compose up
+```
+
+### Stop
+
+```bash
+docker compose down
+```
