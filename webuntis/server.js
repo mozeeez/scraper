@@ -31,24 +31,13 @@ let scraper;
 
 const initScraper = async () => {
   if (!scraper) {
-    console.log();
-    console.log('Initializing WebUntis Scraper...');
-    console.log();
-    try {
-      scraper = new WebUntisScraper();
-      await scraper.init();
-      console.log('WebUntis Scraper initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize WebUntis Scraper:', error);
-      throw error;
-    }
-    console.log();
+    scraper = new WebUntisScraper();
+    await scraper.init();
   }
   return scraper;
 };
 
 const closeScraper = async () => {
-  console.log();
   if (scraper) {
     await scraper.close();
     scraper = null;

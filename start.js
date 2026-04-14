@@ -24,6 +24,13 @@ function render(firstRender = false) {
   }
   process.stdout.write(`\x1B[${LINES}A`);
 
+  console.log(`  ______ ________________  ______   ___________ 
+ /  ___// ___\\_  __ \\__  \\ \\____ \\_/ __ \\_  __ \\
+ \\___ \\\\  \\___|  | \\// __ \\|  |_> >  ___/|  | \\/
+/____  >\\___  >__|  (____  /   __/ \\___  >__|   
+     \\/     \\/           \\/|__|        \\/       
+`);
+
   const lines = [
     "  Select an option:\n",
     ...options.map((opt, i) => {

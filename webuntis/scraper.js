@@ -17,50 +17,69 @@ class WebUntisScraper {
   }
 
   async init() {
-    const username = process.env.WEBUNTIS_USERNAME;
-    const password = process.env.WEBUNTIS_PASSWORD;
-    const url = process.env.WEBUNTIS_URL;
+    const startTime = performance.now();
 
-    if (!username || !password || !url) {
-      throw new Error(
-        'Missing credentials. Please check your .env file (WEBUNTIS_USERNAME, WEBUNTIS_PASSWORD, WEBUNTIS_URL).'
-      );
+    try {
+      console.log('\nInitializing WebUntis Scraper...\n');
+
+      const username = process.env.WEBUNTIS_USERNAME;
+      const password = process.env.WEBUNTIS_PASSWORD;
+      const url = process.env.WEBUNTIS_URL;
+
+      if (!username || !password || !url) {
+        throw new Error(
+          'Missing credentials. Please check your .env file (WEBUNTIS_USERNAME, WEBUNTIS_PASSWORD, WEBUNTIS_URL).'
+        );
+      }
+
+      console.log('1/5 Launching browser...');
+
+      this.browser = await chromium.launch({ headless: DEBUG ? false : true });
+
+      const context = await this.browser.newContext({
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        viewport: { width: 1280, height: 720 },
+      });
+
+      this.page = await context.newPage();
+
+      await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      console.log('2/5 Page loaded');
+
+      // Wait
+      await this.page.waitForSelector('.un-input-group__input');
+      await this.page.locator('.un-input-group__input').nth(0).fill(username);
+      await this.page.locator('.un-input-group__input').nth(1).fill(password);
+      console.log('3/5 Values entered');
+      await this.page.locator('button[type="submit"]').click();
+
+      // Wait
+      await this.page.waitForLoadState('networkidle');
+
+      // Timetable
+      await this.page.waitForSelector('a.Stundenplan', { state: 'visible' });
+      console.log('4/5 Login successful');
+      await this.page.locator('a.Stundenplan').click();
+
+      // Wait
+      await this.page.waitForLoadState('networkidle');
+      console.log('5/5 Timetable opened');
+
+      const endTime = performance.now();
+      const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
+      console.log(`\n✅ WebUntis Scraper initialized successfully in ${durationSeconds} seconds\n`);
+    } catch (error) {
+      const endTime = performance.now();
+      const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
+      console.error(`\n❌ Error occurred after ${durationSeconds}s:\n`, error.message);
+      await scraper.page.screenshot({ path: 'debug_error.png' });
+    } finally {
+      if (DEBUG) {
+        console.log('Debug mode is ON. Keeping the browser open for inspection.\n');
+        return;
+      }
     }
-
-    console.log('1/5 Launching browser...');
-
-    this.browser = await chromium.launch({ headless: DEBUG ? false : true });
-
-    const context = await this.browser.newContext({
-      userAgent:
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      viewport: { width: 1280, height: 720 },
-    });
-
-    this.page = await context.newPage();
-
-    await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    console.log('2/5 Page loaded');
-
-    // Wait
-    await this.page.waitForSelector('.un-input-group__input');
-    await this.page.locator('.un-input-group__input').nth(0).fill(username);
-    await this.page.locator('.un-input-group__input').nth(1).fill(password);
-    console.log('3/5 Values entered');
-    await this.page.locator('button[type="submit"]').click();
-
-    // Wait
-    await this.page.waitForLoadState('networkidle');
-
-    // Timetable
-    await this.page.waitForSelector('a.Stundenplan', { state: 'visible' });
-    console.log('4/5 Login successful');
-    await this.page.locator('a.Stundenplan').click();
-
-    // Wait
-    await this.page.waitForLoadState('networkidle');
-    console.log('5/5 Timetable opened');
-    console.log();
   }
 
   async close() {
@@ -83,7 +102,7 @@ class WebUntisScraper {
     if (!shared) {
       const endTime = performance.now();
       const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.log(`getCurrentDay completed in ${durationSeconds} seconds.`);
+      console.log(`Completed in ${durationSeconds} seconds`);
     }
 
     return result;
@@ -109,7 +128,7 @@ class WebUntisScraper {
 
     const endTime = performance.now();
     const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(`getWeek completed in ${durationSeconds} seconds.`);
+    console.log(`Completed in ${durationSeconds} seconds`);
 
     return week;
   }
@@ -282,7 +301,7 @@ class WebUntisScraper {
     if (!shared) {
       const endTime = performance.now();
       const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.log(`getDay completed in ${durationSeconds} seconds.`);
+      console.log(`Completed in ${durationSeconds} seconds`);
     }
 
     return {
@@ -527,7 +546,7 @@ class WebUntisScraper {
 
     const endTime = performance.now();
     const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(`getCurrent completed in ${durationSeconds} seconds.`);
+    console.log(`Completed in ${durationSeconds} seconds`);
 
     return {
       now,
@@ -603,47 +622,26 @@ function isValidTime24h(time) {
 }
 
 async function test() {
-  const startTime = performance.now();
   const scraper = new WebUntisScraper();
   await scraper.init();
 
-  try {
-    console.log('getDay:');
-    const day = await scraper.getDay(2);
-    console.log(JSON.stringify(day, null, 2));
+  console.log('getDay:');
+  const day = await scraper.getDay(2);
+  console.log(JSON.stringify(day, null, 2));
 
-    console.log('getCurrentDay:');
-    const currentDay = await scraper.getCurrentDay();
-    console.log(JSON.stringify(currentDay, null, 2));
+  console.log('getCurrentDay:');
+  const currentDay = await scraper.getCurrentDay();
+  console.log(JSON.stringify(currentDay, null, 2));
 
-    console.log('getWeek:');
-    const week = await scraper.getWeek();
-    console.log(JSON.stringify(week, null, 2));
+  console.log('getWeek:');
+  const week = await scraper.getWeek();
+  console.log(JSON.stringify(week, null, 2));
 
-    console.log('getCurrent:');
-    const current = await scraper.getCurrent();
-    console.log(JSON.stringify(current, null, 2));
-
-    const endTime = performance.now();
-    const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(`\n✅ Scraping finished successfully in ${durationSeconds} seconds.`);
-  } catch (error) {
-    const endTime = performance.now();
-    const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.error(`\n❌ Error occurred after ${durationSeconds}s:`, error.message);
-    await scraper.page.screenshot({ path: 'debug_error.png' });
-  } finally {
-    if (DEBUG) {
-      console.log('Debug mode is ON. Keeping the browser open for inspection.');
-      return;
-    }
-    console.log('Closing browser...');
-    await scraper.close();
-  }
+  console.log('getCurrent:');
+  const current = await scraper.getCurrent();
+  console.log(JSON.stringify(current, null, 2));
 }
 
 export { WebUntisScraper };
 
-if (DEBUG) {
-  test();
-}
+//test();
