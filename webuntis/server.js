@@ -9,7 +9,8 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Hardcoded API Key
-const API_KEY = 'my-secret-api-key-123';
+const API_KEY =
+	'lvBÔH@ûQ>t;ºCù\P;t}^ÁØj;)WìvÝÊÔ×$ÔÍê©è±]<ÀGÑ¦So¯¹U4ì¤Á*°5ÍÁÐê\ê¿ÐÈkQx^áÕhTAûªnçÅ¶ÌbMåó#ÊØa¹L(ùçú§ß="ïK»KãTþYo÷ÄR÷9ÿ¿áàÛw;¯|?nã\÷';
 
 // API Key Middleware
 app.use((req, res, next) => {
