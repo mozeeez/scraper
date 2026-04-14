@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebUntis API Tester</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: rgb(14, 40, 36);
+        --panel-color: rgb(18, 66, 50);
+      }
+      * {
+        box-sizing: border-box;
+        font-family: 'Ubuntu Mono', monospace;
+      }
+      html {
+        background-color: var(--bg-color);
+      }
+      body {
+        margin: 20px;
+        color: white;
+      }
+      .api-section {
+        margin-bottom: 20px;
+        border: 1px solid #ccc;
+        padding: 10px 20px;
+      }
+      button {
+        padding: 10px;
+        background-color: rgb(127, 233, 78);
+        border: none;
+      }
+      button:active {
+        background-color: rgb(127, 233, 78, 0.8);
+      }
+      pre {
+        background: #000000;
+        padding: 10px;
+        white-space: pre-wrap;
+      }
+      input {
+        padding: 5px;
+        outline: none;
+        width: 200px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>WebUntis API Tester</h1>
+
+    <button onclick="testAllAPIs()">Test All APIs</button>
+    <div id="allResults"></div>
+
+    <div class="api-section">
+      <h2>Get Status</h2>
+      <button onclick="testGetStatus()">Test Get Status</button>
+      <div id="getStatusResult"></div>
+    </div>
+
+    <div class="api-section">
+      <h2>Get Day</h2>
+      <input type="text" id="weekdayIndex" placeholder="Weekday Index (0-4)" />
+      <button onclick="testGetDay()">Test Get Day</button>
+      <div id="getDayResult"></div>
+    </div>
+
+    <div class="api-section">
+      <h2>Get Current Day</h2>
+      <button onclick="testGetCurrentDay()">Test Get Current Day</button>
+      <div id="getCurrentDayResult"></div>
+    </div>
+
+    <div class="api-section">
+      <h2>Get Week</h2>
+      <button onclick="testGetWeek()">Test Get Week</button>
+      <div id="getWeekResult"></div>
+    </div>
+
+    <div class="api-section">
+      <h2>Get Current</h2>
+      <input
+        type="text"
+        id="currentTime"
+        placeholder="Current Time (optional)"
+      />
+      <button onclick="testGetCurrent()">Test Get Current</button>
+      <div id="getCurrentResult"></div>
+    </div>
+
+    <script>
+      async function testAllAPIs() {
+        await testGetStatus();
+        document.getElementById('weekdayIndex').value = 2; // Set default for getDay
+        await testGetDay();
+        await testGetCurrentDay();
+        await testGetWeek();
+        await testGetCurrent();
+        document.getElementById('allResults').innerHTML =
+          '<p>All APIs tested. Check individual results above.</p>';
+      }
+
+      async function testGetStatus() {
+        try {
+          const response = await fetch('http://localhost:3000/api/webuntis');
+          const data = await response.json();
+          document.getElementById('getStatusResult').innerHTML =
+            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        } catch (error) {
+          document.getElementById('getStatusResult').innerHTML =
+            `<pre>Error: ${error.message}</pre>`;
+        }
+      }
+
+      async function testGetDay() {
+        const weekdayIndex = document.getElementById('weekdayIndex').value;
+        try {
+          const response = await fetch(
+            `http://localhost:3000/api/webuntis/getDay?weekdayIndex=${weekdayIndex}`
+          );
+          const data = await response.json();
+          document.getElementById('getDayResult').innerHTML =
+            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        } catch (error) {
+          document.getElementById('getDayResult').innerHTML =
+            `<pre>Error: ${error.message}</pre>`;
+        }
+      }
+
+      async function testGetCurrentDay() {
+        try {
+          const response = await fetch(
+            'http://localhost:3000/api/webuntis/getCurrentDay'
+          );
+          const data = await response.json();
+          document.getElementById('getCurrentDayResult').innerHTML =
+            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        } catch (error) {
+          document.getElementById('getCurrentDayResult').innerHTML =
+            `<pre>Error: ${error.message}</pre>`;
+        }
+      }
+
+      async function testGetWeek() {
+        try {
+          const response = await fetch(
+            'http://localhost:3000/api/webuntis/getWeek'
+          );
+          const data = await response.json();
+          document.getElementById('getWeekResult').innerHTML =
+            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        } catch (error) {
+          document.getElementById('getWeekResult').innerHTML =
+            `<pre>Error: ${error.message}</pre>`;
+        }
+      }
+
+      async function testGetCurrent() {
+        const currentTime = document.getElementById('currentTime').value;
+        const url = currentTime
+          ? `http://localhost:3000/api/webuntis/getCurrent?currentTime=${encodeURIComponent(currentTime)}`
+          : 'http://localhost:3000/api/webuntis/getCurrent';
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
+          document.getElementById('getCurrentResult').innerHTML =
+            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        } catch (error) {
+          document.getElementById('getCurrentResult').innerHTML =
+            `<pre>Error: ${error.message}</pre>`;
+        }
+      }
+    </script>
+  </body>
+</html>
