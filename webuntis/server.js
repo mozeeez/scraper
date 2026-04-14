@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { WebUntisScraper } from './webuntis.js';
+import { WebUntisScraper } from './scraper.js';
 
 const app = express();
 

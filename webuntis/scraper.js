@@ -1,5 +1,8 @@
 import { chromium } from 'playwright-extra';
 import stealth from 'puppeteer-extra-plugin-stealth';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Initialize stealth plugin
 chromium.use(stealth());
@@ -14,6 +17,16 @@ class WebUntisScraper {
   }
 
   async init() {
+    const username = process.env.WEBUNTIS_USERNAME;
+    const password = process.env.WEBUNTIS_PASSWORD;
+    const url = process.env.WEBUNTIS_URL;
+
+    if (!username || !password || !url) {
+      throw new Error(
+        'Missing credentials. Please check your .env file (WEBUNTIS_USERNAME, WEBUNTIS_PASSWORD, WEBUNTIS_URL).'
+      );
+    }
+
     console.log('1/5 Launching browser...');
 
     this.browser = await chromium.launch({ headless: DEBUG ? false : true });
@@ -28,21 +41,12 @@ class WebUntisScraper {
 
     console.log('2/5 Navigating...');
 
-    await this.page.goto(
-      'REMOVED',
-      { waitUntil: 'domcontentloaded', timeout: 60000 }
-    );
+    await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Wait
     await this.page.waitForSelector('.un-input-group__input');
-    await this.page
-      .locator('.un-input-group__input')
-      .nth(0)
-      .fill('REMOVED');
-    await this.page
-      .locator('.un-input-group__input')
-      .nth(1)
-      .fill('REMOVED');
+    await this.page.locator('.un-input-group__input').nth(0).fill(username);
+    await this.page.locator('.un-input-group__input').nth(1).fill(password);
     console.log('3/5 Values entered successfully');
     await this.page.locator('button[type="submit"]').click();
     console.log('4/5 Login button clicked');
@@ -103,7 +107,7 @@ class WebUntisScraper {
       3: days[3],
       4: days[4],
     };
-    
+
     const endTime = performance.now();
     const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
     console.log(`getWeek completed in ${durationSeconds} seconds.`);
@@ -281,7 +285,7 @@ class WebUntisScraper {
       const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
       console.log(`getDay completed in ${durationSeconds} seconds.`);
     }
-    
+
     return {
       date,
       start,
@@ -304,7 +308,6 @@ class WebUntisScraper {
       return currentDay;
     }
 
-    // Validiere currentTime wenn übergeben
     if (currentTime !== null && !isValidTime24h(currentTime)) {
       return {
         error: {
@@ -313,7 +316,7 @@ class WebUntisScraper {
       };
     }
 
-    const now = currentTime || new Date().toTimeString().slice(0, 5); // "HH:MM"
+    const now = currentTime || new Date().toTimeString().slice(0, 5);
 
     const toMinutes = (time) => {
       const [h, m] = time.split(':').map(Number);
@@ -548,18 +551,12 @@ function getWeekdayIndex() {
   const today = new Date().getDay();
 
   switch (today) {
-    case 1:
-      return 0; // Montag
-    case 2:
-      return 1; // Dienstag
-    case 3:
-      return 2; // Mittwoch
-    case 4:
-      return 3; // Donnerstag
-    case 5:
-      return 4; // Freitag
-    default:
-      return null; // Samstag (6) oder Sonntag (0)
+    case 1: return 0;
+    case 2: return 1;
+    case 3: return 2;
+    case 4: return 3;
+    case 5: return 4;
+    default: return null;
   }
 }
 
@@ -571,17 +568,17 @@ function getLessonTime(startPeriod, endPeriod) {
 }
 
 const periodSchedule = {
-  1: { start: '07:45', end: '08:30' },
-  2: { start: '08:30', end: '09:15' },
+  1:  { start: '07:45', end: '08:30' },
+  2:  { start: '08:30', end: '09:15' },
   // Break: 09:15 - 09:30
-  3: { start: '09:30', end: '10:15' },
-  4: { start: '10:15', end: '11:00' },
+  3:  { start: '09:30', end: '10:15' },
+  4:  { start: '10:15', end: '11:00' },
   // Break: 11:00 - 11:15
-  5: { start: '11:15', end: '12:00' },
-  6: { start: '12:00', end: '12:45' },
-  7: { start: '12:45', end: '13:30' },
-  8: { start: '13:30', end: '14:15' },
-  9: { start: '14:15', end: '15:00' },
+  5:  { start: '11:15', end: '12:00' },
+  6:  { start: '12:00', end: '12:45' },
+  7:  { start: '12:45', end: '13:30' },
+  8:  { start: '13:30', end: '14:15' },
+  9:  { start: '14:15', end: '15:00' },
   // Break: 15:00 - 15:15
   10: { start: '15:15', end: '16:00' },
   11: { start: '16:00', end: '16:45' },
@@ -597,25 +594,13 @@ function getPeriodTime(period) {
 }
 
 function isValidTime24h(time) {
-  // Prüfe ob time ein String ist
-  if (typeof time !== 'string') {
-    return false;
-  }
+  if (typeof time !== 'string') return false;
 
-  // Prüfe das Format HH:MM
   const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-  if (!timeRegex.test(time)) {
-    return false;
-  }
+  if (!timeRegex.test(time)) return false;
 
-  // Zusätzliche Validierung: Stunde und Minute extrahieren
   const [hours, minutes] = time.split(':').map(Number);
-
-  // Validiere Bereich (sollte durch Regex schon erfolgt sein)
-  const isValidHours = hours >= 0 && hours <= 23;
-  const isValidMinutes = minutes >= 0 && minutes <= 59;
-
-  return isValidHours && isValidMinutes;
+  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
 }
 
 async function test() {
@@ -642,16 +627,11 @@ async function test() {
 
     const endTime = performance.now();
     const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(
-      `\n✅ Scraping finished successfully in ${durationSeconds} seconds.`
-    );
+    console.log(`\n✅ Scraping finished successfully in ${durationSeconds} seconds.`);
   } catch (error) {
     const endTime = performance.now();
     const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.error(
-      `\n❌ Error occurred after ${durationSeconds}s:`,
-      error.message
-    );
+    console.error(`\n❌ Error occurred after ${durationSeconds}s:`, error.message);
     await scraper.page.screenshot({ path: 'debug_error.png' });
   } finally {
     if (DEBUG) {
