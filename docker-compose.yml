@@ -2,9 +2,20 @@ services:
   scraper:
     build: .
     container_name: scraper
-    ports:
-      - "3000:3000"
     restart: unless-stopped
     dns:
       - 1.1.1.1
       - 8.8.8.8
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.luluksa_rapper.rule=Host(`rapper.luluksa.de`) || Host(`www.rapper.luluksa.de`)"
+      - "traefik.http.routers.luluksa_rapper.entrypoints=websecure"
+      - "traefik.http.routers.luluksa_rapper.tls.certresolver=le"
+      - "traefik.http.services.luluksa_rapper.loadbalancer.server.port=3000"
+
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
