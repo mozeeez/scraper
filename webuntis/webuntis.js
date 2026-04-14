@@ -516,6 +516,7 @@ class WebUntisScraper {
       date: currentDay.date,
       start: currentDay.start,
       end: currentDay.end,
+      lessons: currentDay.lessons,
       period: period,
       lesson: lesson,
       isBefore: isBefore,
