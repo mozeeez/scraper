@@ -235,6 +235,21 @@ class WebUntisScraper {
 
     lessons = splitLessons;
 
+    let periods = [];
+
+    for (const lesson of lessons) {
+      for (let p = lesson.startPeriod; p <= lesson.endPeriod; p++) {
+        const scheduleEntry = periodSchedule[p];
+        periods.push({
+          period: p,
+          subject: lesson.subject,
+          classroom: lesson.classroom,
+          startTime: scheduleEntry.start,
+          endTime: scheduleEntry.end,
+        });
+      }
+    }
+
     let breaks = [];
 
     for (let i = 0; i < lessons.length - 1; i++) {
@@ -272,6 +287,7 @@ class WebUntisScraper {
       start,
       end,
       lessons,
+      periods,
       breaks,
     };
   }
@@ -517,12 +533,13 @@ class WebUntisScraper {
       start: currentDay.start,
       end: currentDay.end,
       lessons: currentDay.lessons,
+      periods: currentDay.periods,
+      breaks: currentDay.breaks,
       period: period,
       lesson: lesson,
       isBefore: isBefore,
       isBreak: isBreak,
       isOver: isOver,
-      breaks: currentDay.breaks,
     };
   }
 }
