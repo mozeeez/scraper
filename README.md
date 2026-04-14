@@ -28,7 +28,11 @@
    WEBUNTIS_PASSWORD="example1234"
    WEBUNTIS_URL="https://example.webuntis.com/WebUntis/index.do#/basic/login"
    ```
-1. From the `scraper` directory, start the WebUntis server:
+1. Run `npm start` and select `WebUntis`
+
+   or
+
+   From the `scraper` directory, start the WebUntis server:
    ```bash
    node webuntis/server.js
    ```
