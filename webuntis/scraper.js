@@ -73,7 +73,7 @@ class WebUntisScraper {
       const endTime = performance.now();
       const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
       console.error(`\n❌ Error occurred after ${durationSeconds}s:\n`, error.message);
-      await scraper.page.screenshot({ path: 'debug_error.png' });
+      await scraper.page.screenshot({ path: 'debug_error__init.png' });
     } finally {
       if (DEBUG) {
         console.log('Debug mode is ON. Keeping the browser open for inspection.\n');
@@ -93,7 +93,7 @@ class WebUntisScraper {
     if (!shared) {
       count++;
       console.log(
-        `Attempt #${count} - getCurrentDay - ${new Date().toLocaleString()}`
+        `Attempt #${count} - getCurrentDay     - ${new Date().toLocaleString()}`
       );
       startTime = performance.now();
     }
@@ -102,7 +102,7 @@ class WebUntisScraper {
     if (!shared) {
       const endTime = performance.now();
       const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.log(`Completed in ${durationSeconds} seconds`);
+      console.log(`- Completed in ${durationSeconds} seconds`);
     }
 
     return result;
@@ -111,7 +111,7 @@ class WebUntisScraper {
   async getWeek() {
     const startTime = performance.now();
     count++;
-    console.log(`Attempt #${count} - getWeek - ${new Date().toLocaleString()}`);
+    console.log(`Attempt #${count} - getWeek           - ${new Date().toLocaleString()}`);
 
     let days = [];
     for (let weekdayIndex = 0; weekdayIndex <= 4; weekdayIndex++) {
@@ -128,7 +128,7 @@ class WebUntisScraper {
 
     const endTime = performance.now();
     const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(`Completed in ${durationSeconds} seconds`);
+    console.log(`- Completed in ${durationSeconds} seconds`);
 
     return week;
   }
@@ -138,8 +138,8 @@ class WebUntisScraper {
     if (!shared) {
       count++;
       console.log(
-        `Attempt #${count} - getDay - ${new Date().toLocaleString()}`
-      );
+        `Attempt #${count} - getDay            - ${new Date().toLocaleString()}`
+      ); 
       startTime = performance.now();
     }
 
@@ -147,41 +147,49 @@ class WebUntisScraper {
       return { error: { message: 'Not a weekday.' } };
     }
 
-    await this.page.waitForSelector('.timetable-grid-card', {
-      state: 'attached',
-    });
-    await this.page.waitForTimeout(500);
-
-    const columns = this.page.locator('.timetable-grid--column-container');
-    const column = columns.nth(weekdayIndex);
-
-    const date = await this.page
-      .locator('.column-header-label-text')
-      .nth(weekdayIndex)
-      .innerText();
-
-    const cardData = await column
-      .locator('.timetable-grid-card')
-      .evaluateAll((cards) => {
-        return cards.map((card) => {
-          const style = window.getComputedStyle(card);
-          const subjectElement = card.querySelector('span');
-          const classroomElement = Array.from(
-            card.querySelectorAll('span')
-          ).find((span) => /^r\d{3}$/.test(span.innerText.trim()));
-
-          return {
-            height: style.height,
-            top: style.top,
-            subject: subjectElement
-              ? subjectElement.innerText.trim()
-              : 'Unknown',
-            classroom: classroomElement
-              ? classroomElement.innerText.trim()
-              : 'Unknown',
-          };
-        });
+    let date = null;
+    let cardData = [];
+    
+    try {
+      await this.page.waitForSelector('.timetable-grid-card', {
+        state: 'attached',
       });
+      await this.page.waitForTimeout(500);
+
+      const columns = this.page.locator('.timetable-grid--column-container');
+      const column = columns.nth(weekdayIndex);
+
+      date = await this.page
+        .locator('.column-header-label-text')
+        .nth(weekdayIndex)
+        .innerText();
+
+      cardData = await column
+        .locator('.timetable-grid-card')
+        .evaluateAll((cards) => {
+          return cards.map((card) => {
+            const style = window.getComputedStyle(card);
+            const subjectElement = card.querySelector('span');
+            const classroomElement = Array.from(
+              card.querySelectorAll('span')
+            ).find((span) => /^r\d{3}$/.test(span.innerText.trim()));
+
+            return {
+              height: style.height,
+              top: style.top,
+              subject: subjectElement
+                ? subjectElement.innerText.trim()
+                : 'Unknown',
+              classroom: classroomElement
+                ? classroomElement.innerText.trim()
+                : 'Unknown',
+            };
+          });
+        });
+    } catch (error) {
+      console.log('Failed to extract timetable data:', error.message);
+      await this.page.screenshot({ path: 'debug_error__extract.png' });
+    }
 
     let lessons = [];
 
@@ -301,7 +309,7 @@ class WebUntisScraper {
     if (!shared) {
       const endTime = performance.now();
       const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.log(`Completed in ${durationSeconds} seconds`);
+      console.log(`- Completed in ${durationSeconds} seconds`);
     }
 
     return {
@@ -318,7 +326,7 @@ class WebUntisScraper {
     const startTime = performance.now();
     count++;
     console.log(
-      `Attempt #${count} - getCurrent - ${new Date().toLocaleString()}`
+      `Attempt #${count} - getCurrent        - ${new Date().toLocaleString()}`
     );
 
     const currentDay = await this.getCurrentDay(true);
@@ -546,7 +554,7 @@ class WebUntisScraper {
 
     const endTime = performance.now();
     const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(`Completed in ${durationSeconds} seconds`);
+    console.log(`- Completed in ${durationSeconds} seconds`);
 
     return {
       now,
