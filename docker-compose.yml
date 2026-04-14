@@ -1,0 +1,10 @@
+services:
+  scraper:
+    build: .
+    container_name: scraper
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
