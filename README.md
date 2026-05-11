@@ -1,3 +1,11 @@
+```ansi
+  ______ ________________  ______   ___________
+ /  ___// ___\_  __ \__  \ \____ \_/ __ \_  __ \
+ \___ \\  \___|  | \// __ \|  |_> >  ___/|  | \/
+/____  >\___  >__|  (____  /   __/ \___  >__|
+     \/     \/           \/|__|        \/
+```
+
 # scraper
 
 ## 1. Installation
@@ -20,7 +28,7 @@
 
 ## 2. Start
 
-### WebUntis server
+### WebUntis Scraper
 
 1. Create an `.env` in the project directory with the variables:
    ```bash
