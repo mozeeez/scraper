@@ -17,11 +17,11 @@ app.use((req, res, next) => {
   const clientKey = req.headers['x-api-key'];
 
   if (!clientKey) {
-    return res.status(401).json({ error: 'Missing API key' });
+    return res.status(401).json({ error: { message: 'Server error: Missing API key' } });
   }
 
   if (clientKey !== API_KEY) {
-    return res.status(403).json({ error: 'Invalid API key' });
+    return res.status(403).json({ error: { message: 'Server error: Invalid API key' } });
   }
 
   next();
@@ -41,33 +41,25 @@ const initScraper = async () => {
 // Routes
 app.get('/api/webuntis', async (req, res) => {
   try {
-    res.json({
-      success: true,
-      message: 'WebUntis Scraper API is running',
-    });
     const scraperInstance = await initScraper();
-    await scraperInstance.restart();
+    res.json({
+      success: {
+        message: 'WebUntis Scraper API is running'
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: { message: `Server error: ${error.message}` } });
   }
 });
 
 app.get('/api/webuntis/getDay', async (req, res) => {
   try {
     const { weekdayIndex } = req.query;
-
-    if (!weekdayIndex) {
-      return res.status(400).json({
-        error: 'Missing required parameter: weekdayIndex',
-      });
-    }
-
     const scraperInstance = await initScraper();
-    const data = await scraperInstance.getDay(parseInt(weekdayIndex));
-
-    res.json(data || { error: 'No data found' });
+    const data = await scraperInstance.getDay(weekdayIndex);
+    res.json(data || { error: {message: 'Server error: No data found.' } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: { message: `Server error: ${error.message}` } });
   }
 });
 
@@ -75,9 +67,9 @@ app.get('/api/webuntis/getCurrentDay', async (req, res) => {
   try {
     const scraperInstance = await initScraper();
     const data = await scraperInstance.getCurrentDay();
-    res.json(data || { error: 'No data found' });
+    res.json(data || { error: {message: 'Server error: No data found.' } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: { message: `Server error: ${error.message}` } });
   }
 });
 
@@ -85,9 +77,9 @@ app.get('/api/webuntis/getWeek', async (req, res) => {
   try {
     const scraperInstance = await initScraper();
     const data = await scraperInstance.getWeek();
-    res.json(data || { error: 'No data found' });
+    res.json(data || { error: {message: 'Server error: No data found.' } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: { message: `Server error: ${error.message}` } });
   }
 });
 
@@ -96,9 +88,9 @@ app.get('/api/webuntis/getCurrent', async (req, res) => {
     const { currentTime } = req.query;
     const scraperInstance = await initScraper();
     const data = await scraperInstance.getCurrent(currentTime);
-    res.json(data || { error: 'No data found' });
+    res.json(data || { error: {message: 'Server error: No data found.' } });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: { message: `Server error: ${error.message}` } });
   }
 });
 
@@ -114,11 +106,11 @@ const server = app.listen(port, async () => {
 server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
     console.error(
-      `Port ${port} is already in use. Please stop the process using this port or choose a different port.`
+      `Server Error: Port ${port} is already in use. Please stop the process using this port or choose a different port.`
     );
     process.exit(1);
   }
 
-  console.error('Server error:', error);
+  console.error('Server error:', error.message);
   process.exit(1);
 });

@@ -25,14 +25,27 @@
         color: white;
       }
       .api-section {
-        margin-bottom: 20px;
+        margin-top: 20px;
         border: 1px solid #ccc;
-        padding: 10px 20px;
+        padding: 20px;
+      }
+      h2 {
+        margin-top: 0;
+      }
+      .dark {
+        background-color: var(--panel-color);
+        padding: 10px;
+        border-radius: 5px;
+      }
+      p {
+        font-size: 0.8rem;
       }
       button {
         padding: 10px;
         background-color: rgb(127, 233, 78);
         border: none;
+        outline: none;
+        cursor: pointer;
       }
       button:active {
         background-color: rgb(127, 233, 78, 0.8);
@@ -40,17 +53,22 @@
       pre {
         background: #000000;
         padding: 10px;
+        max-height: 100px;
+        overflow-y: auto;
         white-space: pre-wrap;
+        margin-bottom: 0;
       }
       input {
-        padding: 5px;
+        padding: 10px;
         outline: none;
         width: 200px;
+        border-radius: 0;
+        border: none;
       }
     </style>
   </head>
   <body>
-    <h1>WebUntis API Tester</h1>
+    <h1>WebUntis API <span class="dark">Tester</span></h1>
 
     <button onclick="testAllAPIs()">Test All APIs</button>
     <div id="allResults"></div>

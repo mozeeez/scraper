@@ -1,178 +1,405 @@
 import { chromium } from 'playwright-extra';
 import stealth from 'puppeteer-extra-plugin-stealth';
-import dotenv from 'dotenv';
+import dotenv, { parse } from 'dotenv';
 
 dotenv.config();
 
 // Initialize stealth plugin
 chromium.use(stealth());
 
-const DEBUG = false;
-let count = 0;
+class StepLogger {
+  constructor(steps) {
+    // steps: Array von Label-Strings, z.B. ['Browser launched', 'New page created', ...]
+    this.steps = steps;
+    this.states = new Array(steps.length).fill('pending'); // 'pending' | 'active' | 'done'
+    this.lineCount = 0;
+  }
 
-class WebUntisScraper {
+  _symbol(state) {
+    return { pending: '○', active: '◉', done: '●' }[state];
+  }
+
+  _render() {
+    // Cursor zurück zu Zeilenanfang (vorherige Zeilen überschreiben)
+    if (this.lineCount > 0) {
+      process.stdout.write(`\x1B[${this.lineCount}A`); // Cursor hoch
+    }
+
+    this.steps.forEach((label, i) => {
+      const symbol = this._symbol(this.states[i]);
+      const num = `${i + 1}/${this.steps.length}`;
+      process.stdout.write(`\r${symbol} ${num} ${label}\x1B[K\n`);
+    });
+
+    this.lineCount = this.steps.length;
+  }
+
+  start(index) {
+    // Alle vorherigen als 'done' markieren
+    for (let i = 0; i < index; i++) {
+      if (this.states[i] === 'active') this.states[i] = 'done';
+    }
+    this.states[index] = 'active';
+    this._render();
+  }
+
+  finish(index) {
+    this.states[index] = 'done';
+    this._render();
+  }
+
+  finishAll() {
+    this.states = this.states.map(() => 'done');
+    this._render();
+  }
+}
+
+const DEBUG = false;
+const TEST_MODE = false;
+
+class Scraper {
   constructor() {
+    this.id = Math.random().toString(36).substring(2, 8);
     this.browser = null;
     this.page = null;
+    this.count = 0;
+
+    this.DEBUG = DEBUG;
+    console.log(`Scraper [${this.id}] initialized with DEBUG=${DEBUG} and TEST_MODE=${TEST_MODE}`);
+    this.KEEP_OPEN = true;
+
+    this.startTime = null;
+
+    this.periodSchedule = {
+      1:  { start: '07:45', end: '08:30' },
+      2:  { start: '08:30', end: '09:15' },
+      // Break: 09:15 - 09:30
+      3:  { start: '09:30', end: '10:15' },
+      4:  { start: '10:15', end: '11:00' },
+      // Break: 11:00 - 11:15
+      5:  { start: '11:15', end: '12:00' },
+      6:  { start: '12:00', end: '12:45' },
+      7:  { start: '12:45', end: '13:30' },
+      8:  { start: '13:30', end: '14:15' },
+      9:  { start: '14:15', end: '15:00' },
+      // Break: 15:00 - 15:15
+      10: { start: '15:15', end: '16:00' },
+      11: { start: '16:00', end: '16:45' },
+      12: { start: '16:45', end: '17:30' },
+      13: { start: '17:30', end: '18:15' },
+    };
+
+    this.timeoutPage = 60000;
+    this.timeoutTimetable = 5000;
+  }
+
+  async launchBrowser() {
+    this.browser = await chromium.launch({
+      headless: this.DEBUG ? false : true,
+      args: ['--disable-dev-shm-usage'],
+    });
+  }
+
+  async newPage() {
+    if (!this.browser) {
+      console.warn('Browser not initialized. Launching browser...');
+      await this.launchBrowser();
+    }
+    this.page = await this.browser.newPage({
+      userAgent:
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      viewport: { width: 1280, height: 720 },
+    });
+  }
+
+  async debugScreenshot(name) {
+    const time = new Date().toLocaleTimeString(undefined, { hour12: false });
+
+    if (this.DEBUG && this.page) {
+      await this.page.screenshot({ path: `debug_${name}_${time}.png` });
+    }
+  }
+
+  async pageOpen(url) {
+    await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: this.timeoutPage });
+  }
+
+  saveStartTime() {
+    this.startTime = performance.now();
+  }
+
+  readEnv(varname) {
+    return process.env[varname];
+  }
+
+  getDurationSeconds() {
+    const endTime = performance.now();
+    const durationSeconds = ((endTime - this.startTime) / 1000).toFixed(2);
+    this.startTime = null;
+    return durationSeconds;
+  }
+
+  async closePage() {
+    if (this.page) {
+      await this.page.close();
+      this.page = null;
+    }
+  }
+
+  async closeBrowser() {
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
+    }
+  }
+}
+
+class WebUntisScraper extends Scraper {
+  constructor() {
+    super();
+    this.sessionWatcher = null;
+    this.sessionWatcherInterval = 60000;
+    this.sessionWatcherStartTime = null;
+    this.sessionWatcherTriggers = ['Session', 'Timeout', 'Sitzung', 'verlängern'];
   }
 
   async open() {
-    const startTime = performance.now();
+  this.saveStartTime();
 
-    try {
-      console.log('\nOpen WebUntis Page...\n');
+  try {
+    console.log('\nOpen WebUntis Page...');
 
-      const username = process.env.WEBUNTIS_USERNAME;
-      const password = process.env.WEBUNTIS_PASSWORD;
-      const url = process.env.WEBUNTIS_URL;
+    const username = this.readEnv('WEBUNTIS_USERNAME');
+    const password = this.readEnv('WEBUNTIS_PASSWORD');
+    const url = this.readEnv('WEBUNTIS_URL');
 
-      if (!username || !password || !url) {
-        throw new Error(
-          'Missing credentials. Please check your .env file (WEBUNTIS_USERNAME, WEBUNTIS_PASSWORD, WEBUNTIS_URL).'
+    if (!username || !password || !url) {
+      console.error('Internal error: Missing required environment variables. Please set WEBUNTIS_USERNAME, WEBUNTIS_PASSWORD, and WEBUNTIS_URL.');
+      return;
+    }
+
+    console.log('-----------------------------');
+
+    const logger = new StepLogger([
+      'Browser launched',
+      'New page created',
+      'Page navigated',
+      'Values entered',
+      'Login successful',
+      'Timetable opened',
+    ]);
+
+    logger.start(0);
+    await this.launchBrowser();
+    logger.finish(0);
+
+    logger.start(1);
+    await this.newPage();
+    logger.finish(1);
+
+    logger.start(2);
+    await this.pageOpen(url);
+    logger.finish(2);
+
+    logger.start(3);
+    await this.page.waitForSelector('.un-input-group__input');
+    await this.page.locator('.un-input-group__input').nth(0).fill(username);
+    await this.page.locator('.un-input-group__input').nth(1).fill(password);
+    logger.finish(3);
+
+    logger.start(4);
+    await this.page.locator('button[type="submit"]').click();
+    await this.page.waitForLoadState('networkidle');
+    await this.page.waitForSelector('a.Stundenplan', { state: 'visible' });
+    logger.finish(4);
+
+    logger.start(5);
+    await this.page.locator('a.Stundenplan').click();
+    await this.page.waitForLoadState('networkidle');
+    logger.finish(5);
+
+    console.log('-----------------------------');
+    console.log(`Time: ${new Date().toLocaleString(undefined, { hour12: false })}`);
+    const durationSeconds = this.getDurationSeconds();
+    console.log(`✅ WebUntis opened successfully in ${durationSeconds} seconds`);
+  } catch (error) {
+    const durationSeconds = this.getDurationSeconds();
+    console.error(`❌ Error occurred after ${durationSeconds}s:\n`, error.message);
+    await this.debugScreenshot('open_error');
+    // wait 2 seconds
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await this.restart();
+  } finally {
+    if (this.KEEP_OPEN) {
+      console.log('Keeping the browser open\n');
+      this.startSessionWatcher();
+    } else {
+      await this.closePage();
+      await this.closeBrowser();
+      console.log('Browser closed\n');
+    }
+  }
+}
+
+  startSessionWatcher() {
+    if (this.sessionWatcher) return;
+
+    this.sessionWatcherStartTime = performance.now();
+
+    this.sessionWatcher = setInterval(async () => {
+      try {
+        if (!this.page) return;
+
+        const content = await this.page.content();
+
+        const sessionExpired = this.sessionWatcherTriggers.every(
+          t => content.includes(t)
         );
+
+        if (sessionExpired) {
+          const aliveTime = (
+            (performance.now() - this.sessionWatcherStartTime) / 60000
+          ).toFixed(2);
+
+          console.log(`⚠️ Session expired after ${aliveTime} minutes → restarting...`);
+
+          this.stopSessionWatcher();
+          await this.restart();
+        }
+      } catch (err) {
+        console.error('Internal error: Session watcher:', err.message);
       }
+    }, this.sessionWatcherInterval);
+  }
 
-      console.log('1/5 Launching browser...');
-
-      this.browser = await chromium.launch({ headless: DEBUG ? false : true });
-
-      const context = await this.browser.newContext({
-        userAgent:
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        viewport: { width: 1280, height: 720 },
-      });
-
-      this.page = await context.newPage();
-
-      await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      console.log('2/5 Page loaded');
-
-      // Wait
-      await this.page.waitForSelector('.un-input-group__input');
-      await this.page.locator('.un-input-group__input').nth(0).fill(username);
-      await this.page.locator('.un-input-group__input').nth(1).fill(password);
-      console.log('3/5 Values entered');
-      await this.page.locator('button[type="submit"]').click();
-
-      // Wait
-      await this.page.waitForLoadState('networkidle');
-
-      // Timetable
-      await this.page.waitForSelector('a.Stundenplan', { state: 'visible' });
-      console.log('4/5 Login successful');
-      await this.page.locator('a.Stundenplan').click();
-
-      // Wait
-      await this.page.waitForLoadState('networkidle');
-      console.log('5/5 Timetable opened');
-
-      const endTime = performance.now();
-      const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.log(`\n✅ WebUntis opened successfully in ${durationSeconds} seconds\n`);
-    } catch (error) {
-      const endTime = performance.now();
-      const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.error(`\n❌ Error occurred after ${durationSeconds}s:\n`, error.message);
-      await this.page.screenshot({ path: 'debug_error__init.png' });
-      this.restart()
-    } finally {
-      if (DEBUG) {
-        console.log('Debug mode is ON. Keeping the browser open for inspection.\n');
-        return;
-      }
+  stopSessionWatcher() {
+    if (this.sessionWatcher) {
+      clearInterval(this.sessionWatcher);
+      this.sessionWatcher = null;
+      this.sessionWatcherStartTime = null;
     }
   }
 
   async restart() {
-    console.log('\nRestarting browser session...');
+    console.log('Restarting browser session...');
 
     try {
-      if (this.page) {
-        await this.page.close();
-        this.page = null;
-      }
-
-      if (this.browser) {
-        await this.browser.close();
-        this.browser = null;
-      }
+      await this.stopSessionWatcher();
+      await this.closePage();
+      await this.closeBrowser();
 
       await this.open();
-
       console.log('✅ Restart completed successfully\n');
     } catch (error) {
       console.error('❌ Restart failed:\n', error.message);
     }
   }
 
-  async getCurrentDay(shared = false) {
-    let startTime;
-    if (!shared) {
-      count++;
-      console.log(
-        `Attempt #${count} - getCurrentDay     - ${new Date().toLocaleString()}`
-      );
-      startTime = performance.now();
+  async getDay(weekdayIndex) {
+    const startTime = performance.now();
+    this.count++;
+    console.log(`Attempt #${this.count} - getDay            - ${new Date().toLocaleString(undefined, { hour12: false })}`);
+
+    if (!weekdayIndex) {
+      console.error('- Error: Missing required parameter: weekdayIndex');
+      return { error: { message: 'Missing required parameter: weekdayIndex' } };
     }
 
-    const result = await this.getDay(getWeekdayIndex(), true);
-    if (!shared) {
-      const endTime = performance.now();
-      const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.log(`- Completed in ${durationSeconds} seconds`);
+    if (isNaN(parseInt(weekdayIndex))) {
+      console.error('- Error: Invalid parameter: weekdayIndex must be a number');
+      return { error: { message: 'Invalid parameter: weekdayIndex must be a number' } };
     }
+
+    const result = await this.extract(weekdayIndex);
+
+    const durationSeconds = ((performance.now() - startTime) / 1000).toFixed(2);
+    console.log(`- Completed in ${durationSeconds} seconds`);
+
+    return result;
+  }
+
+  async getCurrentDay() {
+    const startTime = performance.now();;
+    this.count++;
+    console.log(`Attempt #${this.count} - getCurrentDay     - ${new Date().toLocaleString(undefined, { hour12: false })}`);
+
+    const result = await this.extract(this.getWeekdayIndex());
+
+    const durationSeconds = ((performance.now() - startTime) / 1000).toFixed(2);
+    console.log(`- Completed in ${durationSeconds} seconds`);
 
     return result;
   }
 
   async getWeek() {
     const startTime = performance.now();
-    count++;
-    console.log(`Attempt #${count} - getWeek           - ${new Date().toLocaleString()}`);
+    this.count++;
+    console.log(`Attempt #${this.count} - getWeek           - ${new Date().toLocaleString(undefined, { hour12: false })}`);
 
-    let days = [];
+    const days = [];
     for (let weekdayIndex = 0; weekdayIndex <= 4; weekdayIndex++) {
-      const day = await this.getDay(weekdayIndex, true);
-      days.push(day);
+      days.push(await this.extract(weekdayIndex));
     }
-    const week = {
-      0: days[0],
-      1: days[1],
-      2: days[2],
-      3: days[3],
-      4: days[4],
-    };
 
-    const endTime = performance.now();
-    const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
+    const week = { 0: days[0], 1: days[1], 2: days[2], 3: days[3], 4: days[4] };
+
+    const durationSeconds = ((performance.now() - startTime) / 1000).toFixed(2);
     console.log(`- Completed in ${durationSeconds} seconds`);
 
     return week;
   }
 
-  async getDay(weekdayIndex, shared = false) {
-    let startTime;
-    if (!shared) {
-      count++;
-      console.log(
-        `Attempt #${count} - getDay            - ${new Date().toLocaleString()}`
-      ); 
-      startTime = performance.now();
+  async getCurrent(currentTime = null) {
+    const startTime = performance.now();
+    this.count++;
+    console.log(`Attempt #${this.count} - getCurrent        - ${new Date().toLocaleString(undefined, { hour12: false })}`);
+
+    const currentDay = await this.extract(this.getWeekdayIndex());
+
+    if (currentTime !== null && !this.isValidTime24h(currentTime)) {
+      console.error('- Error: Invalid time format. Expected HH:MM in 24-hour format.');
+      return { error: { message: 'Invalid time format. Expected HH:MM in 24-hour format.' } };
     }
 
+    let result;
+    if (currentDay.warn) {
+      result = currentDay;
+    } else {
+      result = this.extendedExtraction(currentTime, currentDay);
+    }
+
+    const durationSeconds = ((performance.now() - startTime) / 1000).toFixed(2);
+    console.log(`- Completed in ${durationSeconds} seconds`);
+
+    return result;
+  }
+
+  async extract(weekdayIndex) {
     if (weekdayIndex < 0 || weekdayIndex > 4) {
-      return { error: { message: 'Not a weekday.' } };
+      console.error(`- Internal error: weekdayIndex out of bounds.`);
+      return { error: { message: 'Internal error: weekdayIndex out of bounds.' } };
     }
 
     let date = null;
     let cardData = [];
-    
-    try {
-      await this.page.waitForSelector('.timetable-grid-card', {
-        state: 'attached',
-      });
-      await this.page.waitForTimeout(500);
 
+    let isTimeout = false;
+
+    const appeared = await this.page
+      .waitForSelector('.timetable-grid-card', { state: 'visible', timeout: this.timeoutTimetable })
+      .catch(() => {
+        isTimeout = true;
+      });
+
+    if (!appeared) {
+      if (isTimeout) {
+        console.warn('Timeout while getting timetable cards, skipping.')
+      }
+      console.warn(`- Warn: No timetable cards found for weekday index ${weekdayIndex}, skipping.`);
+      return { warn: { message: 'No timetable data found.' } };
+    }
+
+    try {
       const columns = this.page.locator('.timetable-grid--column-container');
       const column = columns.nth(weekdayIndex);
 
@@ -181,89 +408,71 @@ class WebUntisScraper {
         .nth(weekdayIndex)
         .innerText();
 
-      cardData = await column
-        .locator('.timetable-grid-card')
-        .evaluateAll((cards) => {
-          return cards.map((card) => {
-            const style = window.getComputedStyle(card);
-            const subjectElement = card.querySelector('span');
-            const classroomElement = Array.from(
-              card.querySelectorAll('span')
-            ).find((span) => /^r\d{3}$/.test(span.innerText.trim()));
-
-            return {
-              height: style.height,
-              top: style.top,
-              subject: subjectElement
-                ? subjectElement.innerText.trim()
-                : 'Unknown',
-              classroom: classroomElement
-                ? classroomElement.innerText.trim()
-                : 'Unknown',
-            };
-          });
-        });
+      cardData = await column.locator('.timetable-grid-card').evaluateAll((cards) =>
+        cards.map((card) => {
+          const style = window.getComputedStyle(card);
+          const subjectElement = card.querySelector('span');
+          const classroomElement = Array.from(card.querySelectorAll('span')).find((span) =>
+            /^r\d{3}$/.test(span.innerText.trim())
+          );
+          return {
+            height: style.height,
+            top: style.top,
+            subject: subjectElement ? subjectElement.innerText.trim() : 'Unknown',
+            classroom: classroomElement ? classroomElement.innerText.trim() : 'Unknown',
+          };
+        })
+      );
     } catch (error) {
-      console.log('Failed to extract timetable data:', error.message);
-      await this.page.screenshot({ path: 'debug_error__extract.png' });
+      console.error('- Internal error: Failed to extract timetable data:', error.message);
+      await this.debugScreenshot('extract_error');
+      return { error: { message: 'Internal error: Failed to extract timetable data.' } };
     }
 
-    let lessons = [];
-
-    cardData.forEach((card, i) => {
+    // ── Card px → period mapping ─────────────────
+    let lessons = cardData.map((card, i) => {
       const startPx = parseInt(card.top, 10) - 9;
       const endPx = startPx + parseInt(card.height, 10);
-      const durationPx = endPx - startPx;
-
-      const durationPeriods = (durationPx + 1) / 64;
       const startPeriod = startPx / 64 + 1;
-      const endPeriod = startPeriod + durationPeriods - 1;
+      const endPeriod = startPeriod + (endPx - startPx + 1) / 64 - 1;
+      const lessonTime = this.getLessonTime(startPeriod, endPeriod);
 
-      const lessonTime = getLessonTime(startPeriod, endPeriod);
-
-      const lesson = {
+      return {
         i,
         subject: card.subject,
         classroom: card.classroom,
         startTime: lessonTime.start,
         endTime: lessonTime.end,
-        startPeriod: startPeriod,
-        endPeriod: endPeriod,
-        durationPeriods: durationPeriods,
+        startPeriod,
+        endPeriod,
+        durationPeriods: (endPx - startPx + 1) / 64,
       };
-
-      lessons.push(lesson);
     });
 
-    const splitLessons = [];
-
+    // ── Split lessons that span breaks ───────────
     const toMinutes = (time) => {
       const [h, m] = time.split(':').map(Number);
       return h * 60 + m;
     };
 
+    const splitLessons = [];
     for (const lesson of lessons) {
       let currentStartPeriod = lesson.startPeriod;
 
       for (let p = lesson.startPeriod; p <= lesson.endPeriod; p++) {
-        const current = periodSchedule[p];
-        const next = periodSchedule[p + 1];
-
-        const currentEnd = toMinutes(current.end);
-        const nextStart = next ? toMinutes(next.start) : null;
-
-        const hasBreakAfter = next && nextStart > currentEnd;
+        const current = this.periodSchedule[p];
+        const next = this.periodSchedule[p + 1];
+        const hasBreakAfter = next && toMinutes(next.start) > toMinutes(current.end);
 
         if (hasBreakAfter && p < lesson.endPeriod) {
           splitLessons.push({
             ...lesson,
             startPeriod: currentStartPeriod,
             endPeriod: p,
-            startTime: periodSchedule[currentStartPeriod].start,
+            startTime: this.periodSchedule[currentStartPeriod].start,
             endTime: current.end,
             durationPeriods: p - currentStartPeriod + 1,
           });
-
           currentStartPeriod = p + 1;
         }
       }
@@ -272,22 +481,21 @@ class WebUntisScraper {
         ...lesson,
         startPeriod: currentStartPeriod,
         endPeriod: lesson.endPeriod,
-        startTime: periodSchedule[currentStartPeriod].start,
-        endTime: periodSchedule[lesson.endPeriod].end,
+        startTime: this.periodSchedule[currentStartPeriod].start,
+        endTime: this.periodSchedule[lesson.endPeriod].end,
         durationPeriods: lesson.endPeriod - currentStartPeriod + 1,
       });
     }
 
     splitLessons.forEach((l, index) => (l.i = index));
-
     lessons = splitLessons;
 
-    let periods = [];
-
-    for (const lesson of lessons) {
+    // ── Build periods array ──────────────────────
+    const periods = lessons.flatMap((lesson) => {
+      const result = [];
       for (let p = lesson.startPeriod; p <= lesson.endPeriod; p++) {
-        const scheduleEntry = periodSchedule[p];
-        periods.push({
+        const scheduleEntry = this.periodSchedule[p];
+        result.push({
           period: p,
           subject: lesson.subject,
           classroom: lesson.classroom,
@@ -295,283 +503,158 @@ class WebUntisScraper {
           endTime: scheduleEntry.end,
         });
       }
-    }
+      return result;
+    });
 
-    let breaks = [];
-
+    // ── Build breaks array ───────────────────────
+    const breaks = [];
     for (let i = 0; i < lessons.length - 1; i++) {
-      const currentLesson = lessons[i];
-      const nextLesson = lessons[i + 1];
+      const curr = lessons[i];
+      const next = lessons[i + 1];
+      const gap = toMinutes(next.startTime) - toMinutes(curr.endTime);
 
-      const currentEnd = toMinutes(currentLesson.endTime);
-      const nextStart = toMinutes(nextLesson.startTime);
-
-      if (nextStart > currentEnd) {
+      if (gap > 0) {
         breaks.push({
           i: breaks.length,
           afterLessonIndex: i,
           beforeLessonIndex: i + 1,
-          startTime: currentLesson.endTime,
-          endTime: nextLesson.startTime,
-          startPeriod: currentLesson.endPeriod,
-          endPeriod: nextLesson.startPeriod,
-          durationMinutes: nextStart - currentEnd,
+          startTime: curr.endTime,
+          endTime: next.startTime,
+          startPeriod: curr.endPeriod,
+          endPeriod: next.startPeriod,
+          durationMinutes: gap,
         });
       }
     }
 
-    const start = lessons[0].startTime;
-    const end = lessons[lessons.length - 1].endTime;
-
-    if (!shared) {
-      const endTime = performance.now();
-      const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-      console.log(`- Completed in ${durationSeconds} seconds`);
-    }
-
     return {
       date,
-      start,
-      end,
+      start: lessons[0]?.startTime ?? null,
+      end: lessons[lessons.length - 1]?.endTime ?? null,
       lessons,
       periods,
       breaks,
     };
   }
 
-  async getCurrent(currentTime = null) {
-    const startTime = performance.now();
-    count++;
-    console.log(
-      `Attempt #${count} - getCurrent        - ${new Date().toLocaleString()}`
-    );
-
-    const currentDay = await this.getCurrentDay(true);
-    if (currentDay.error) {
-      return currentDay;
-    }
-
-    if (currentTime !== null && !isValidTime24h(currentTime)) {
-      return {
-        error: {
-          message: `Invalid time format.`,
-        },
-      };
-    }
-
-    const now = currentTime || new Date().toTimeString().slice(0, 5);
-
+  extendedExtraction(currentTime, currentDay) {
     const toMinutes = (time) => {
       const [h, m] = time.split(':').map(Number);
       return h * 60 + m;
     };
 
+    const now = currentTime || new Date().toTimeString().slice(0, 5);
     const nowMinutes = toMinutes(now);
 
+    // ── Determine current/prev/next period ───────
     let currentPeriod = null;
     let previousPeriod = null;
     let nextPeriod = null;
 
-    let currentPeriodLesson = null;
-    let nextPeriodLesson = null;
-    let previousPeriodLesson = null;
-
-    let previousLesson = null;
-    let nextLesson = null;
-
-    const periods = Object.entries(periodSchedule)
-      .map(([key, value]) => ({
-        number: Number(key),
-        start: toMinutes(value.start),
-        end: toMinutes(value.end),
-      }))
+    const periodsArr = Object.entries(this.periodSchedule)
+      .map(([key, value]) => ({ number: Number(key), start: toMinutes(value.start), end: toMinutes(value.end) }))
       .sort((a, b) => a.start - b.start);
 
-    for (let i = 0; i < periods.length; i++) {
-      const lesson = periods[i];
-
-      if (nowMinutes >= lesson.start && nowMinutes < lesson.end) {
-        currentPeriod = lesson.number;
-        previousPeriod = periods[i - 1]?.number || null;
-        nextPeriod = periods[i + 1]?.number || null;
+    for (let i = 0; i < periodsArr.length; i++) {
+      const p = periodsArr[i];
+      if (nowMinutes >= p.start && nowMinutes < p.end) {
+        currentPeriod = p.number;
+        previousPeriod = periodsArr[i - 1]?.number ?? null;
+        nextPeriod = periodsArr[i + 1]?.number ?? null;
         break;
       }
-
-      if (nowMinutes < lesson.start) {
-        previousPeriod = periods[i - 1]?.number || null;
-        nextPeriod = lesson.number;
+      if (nowMinutes < p.start) {
+        previousPeriod = periodsArr[i - 1]?.number ?? null;
+        nextPeriod = p.number;
         break;
       }
     }
 
-    let isBefore = false;
-    if (nowMinutes < toMinutes(currentDay.start)) {
-      isBefore = true;
-    }
+    const isBefore = nowMinutes < toMinutes(currentDay.start);
+    const isOver = nowMinutes >= toMinutes(currentDay.end);
 
-    let isOver = false;
-    if (nowMinutes >= toMinutes(currentDay.end)) {
-      isOver = true;
-    }
+    // ── Match lessons to period slots ────────────
+    const findLesson = (period) =>
+      period != null
+        ? currentDay.lessons.find((l) => l.startPeriod <= period && l.endPeriod >= period) ?? null
+        : null;
 
-    for (let lesson of currentDay.lessons) {
-      if (
-        currentPeriod &&
-        lesson.startPeriod <= currentPeriod &&
-        lesson.endPeriod >= currentPeriod
-      ) {
-        currentPeriodLesson = lesson;
-      }
-      if (
-        previousPeriod &&
-        lesson.startPeriod <= previousPeriod &&
-        lesson.endPeriod >= previousPeriod
-      ) {
-        previousPeriodLesson = lesson;
-      }
-      if (
-        nextPeriod &&
-        lesson.startPeriod <= nextPeriod &&
-        lesson.endPeriod >= nextPeriod
-      ) {
-        nextPeriodLesson = lesson;
-      }
-    }
+    let currentPeriodLesson = findLesson(currentPeriod);
+    let previousPeriodLesson = findLesson(previousPeriod);
+    let nextPeriodLesson = findLesson(nextPeriod);
 
-    let isBreak = false;
-    if (!currentPeriodLesson && nextPeriod && previousPeriod) {
-      isBreak = true;
-    }
+    const isBreak = !currentPeriodLesson && nextPeriod != null && previousPeriod != null;
+
+    // ── Resolve previous/next lesson ─────────────
+    let previousLesson = null;
+    let nextLesson = null;
 
     if (currentPeriodLesson) {
       const idx = currentPeriodLesson.i;
       previousLesson = currentDay.lessons[idx - 1] ?? null;
       nextLesson = currentDay.lessons[idx + 1] ?? null;
-    } else {
-      if (isBefore) {
-        nextLesson = currentDay.lessons[0];
-      } else if (isBreak) {
-        nextLesson = currentDay.lessons.find(
-          (l) => l.startPeriod >= nextPeriod
-        );
-        previousLesson = [...currentDay.lessons]
-          .reverse()
-          .find((l) => l.endPeriod <= previousPeriod);
-      } else if (isOver) {
-        previousLesson = currentDay.lessons[currentDay.lessons.length - 1];
-      }
+    } else if (isBefore) {
+      nextLesson = currentDay.lessons[0];
+    } else if (isBreak) {
+      nextLesson = currentDay.lessons.find((l) => l.startPeriod >= nextPeriod) ?? null;
+      previousLesson = [...currentDay.lessons].reverse().find((l) => l.endPeriod <= previousPeriod) ?? null;
+    } else if (isOver) {
+      previousLesson = currentDay.lessons[currentDay.lessons.length - 1];
     }
 
-    const currentPeriodTime = getPeriodTime(currentPeriod);
-    const previousPeriodTime = getPeriodTime(previousPeriod);
-    const nextPeriodTime = getPeriodTime(nextPeriod);
-
-    const period = {};
-    const lesson = {};
-
-    if (currentPeriodLesson) {
-      period.current = {
-        period: currentPeriod,
-        subject: currentPeriodLesson?.subject ?? 'None',
-        classroom: currentPeriodLesson?.classroom ?? 'N/A',
-        startTime: currentPeriodTime?.start ?? 'N/A',
-        endTime: currentPeriodTime?.end ?? 'N/A',
-      };
-    }
-
+    // ── Fallbacks for unmatched prev/next ────────
     if (!previousPeriodLesson && !isBefore) {
-      previousLesson = [...currentDay.lessons]
-        .reverse()
-        .find((l) => toMinutes(l.endTime) <= nowMinutes);
-
-      if (previousLesson) {
-        previousPeriod = previousLesson.endPeriod;
-        const previousPeriodTime = getPeriodTime(previousPeriod);
-
-        period.previous = {
-          period: previousPeriod,
-          subject: previousLesson.subject,
-          classroom: previousLesson.classroom,
-          startTime: previousPeriodTime.start,
-          endTime: previousPeriodTime.end,
-        };
-      }
-    } else if (previousPeriodLesson) {
-      period.previous = {
-        period: previousPeriod,
-        subject: previousPeriodLesson?.subject ?? 'None',
-        classroom: previousPeriodLesson?.classroom ?? 'N/A',
-        startTime: previousPeriodTime?.start ?? 'N/A',
-        endTime: previousPeriodTime?.end ?? 'N/A',
-      };
+      previousLesson = [...currentDay.lessons].reverse().find((l) => toMinutes(l.endTime) <= nowMinutes) ?? null;
+      if (previousLesson) previousPeriod = previousLesson.endPeriod;
+    } else {
+      previousLesson = previousLesson ?? previousPeriodLesson;
     }
 
     if (!nextPeriodLesson && !isOver) {
-      nextLesson = currentDay.lessons.find(
-        (l) => toMinutes(l.startTime) > nowMinutes
-      );
-
-      if (nextLesson) {
-        nextPeriod = nextLesson.startPeriod;
-        const nextPeriodTime = getPeriodTime(nextPeriod);
-
-        period.next = {
-          period: nextPeriod,
-          subject: nextLesson.subject,
-          classroom: nextLesson.classroom,
-          startTime: nextPeriodTime.start,
-          endTime: nextPeriodTime.end,
-        };
-      }
-    } else if (nextPeriodLesson) {
-      period.next = {
-        period: nextPeriod,
-        subject: nextPeriodLesson?.subject ?? 'None',
-        classroom: nextPeriodLesson?.classroom ?? 'N/A',
-        startTime: nextPeriodTime?.start ?? 'N/A',
-        endTime: nextPeriodTime?.end ?? 'N/A',
-      };
+      nextLesson = currentDay.lessons.find((l) => toMinutes(l.startTime) > nowMinutes) ?? null;
+      if (nextLesson) nextPeriod = nextLesson.startPeriod;
+    } else {
+      nextLesson = nextLesson ?? nextPeriodLesson;
     }
 
-    if (currentPeriodLesson) {
-      lesson.current = {
-        subject: currentPeriodLesson?.subject ?? 'None',
-        classroom: currentPeriodLesson?.classroom ?? 'N/A',
-        durationPeriods: currentPeriodLesson?.durationPeriods ?? 'N/A',
-        startTime: currentPeriodLesson?.startTime ?? 'N/A',
-        endTime: currentPeriodLesson?.endTime ?? 'N/A',
-        startPeriod: currentPeriodLesson?.startPeriod ?? 'N/A',
-        endPeriod: currentPeriodLesson?.endPeriod ?? 'N/A',
+    // ── Build output objects ─────────────────────
+    const makePeriodEntry = (period, lesson) => {
+      if (!lesson) return undefined;
+      const t = this.getPeriodTime(period);
+      return {
+        period,
+        subject: lesson.subject ?? 'None',
+        classroom: lesson.classroom ?? 'N/A',
+        startTime: t?.start ?? 'N/A',
+        endTime: t?.end ?? 'N/A',
       };
-    }
+    };
 
-    if (previousLesson) {
-      lesson.previous = {
-        subject: previousLesson?.subject ?? 'None',
-        classroom: previousLesson?.classroom ?? 'N/A',
-        durationPeriods: previousLesson?.durationPeriods ?? 'N/A',
-        startTime: previousLesson?.startTime ?? 'N/A',
-        endTime: previousLesson?.endTime ?? 'N/A',
-        startPeriod: previousLesson?.startPeriod ?? 'N/A',
-        endPeriod: previousLesson?.endPeriod ?? 'N/A',
+    const makeLessonEntry = (lesson) => {
+      if (!lesson) return undefined;
+      return {
+        subject: lesson.subject ?? 'None',
+        classroom: lesson.classroom ?? 'N/A',
+        durationPeriods: lesson.durationPeriods ?? 'N/A',
+        startTime: lesson.startTime ?? 'N/A',
+        endTime: lesson.endTime ?? 'N/A',
+        startPeriod: lesson.startPeriod ?? 'N/A',
+        endPeriod: lesson.endPeriod ?? 'N/A',
       };
-    }
+    };
 
-    if (nextLesson) {
-      lesson.next = {
-        subject: nextLesson?.subject ?? 'None',
-        classroom: nextLesson?.classroom ?? 'N/A',
-        durationPeriods: nextLesson?.durationPeriods ?? 'N/A',
-        startTime: nextLesson?.startTime ?? 'N/A',
-        endTime: nextLesson?.endTime ?? 'N/A',
-        startPeriod: nextLesson?.startPeriod ?? 'N/A',
-        endPeriod: nextLesson?.endPeriod ?? 'N/A',
-      };
-    }
+    const period = {};
+    if (currentPeriodLesson) period.current = makePeriodEntry(currentPeriod, currentPeriodLesson);
+    const prevEntry = makePeriodEntry(previousPeriod, previousLesson ?? previousPeriodLesson);
+    if (prevEntry) period.previous = prevEntry;
+    const nextEntry = makePeriodEntry(nextPeriod, nextLesson ?? nextPeriodLesson);
+    if (nextEntry) period.next = nextEntry;
 
-    const endTime = performance.now();
-    const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
-    console.log(`- Completed in ${durationSeconds} seconds`);
+    const lesson = {};
+    if (currentPeriodLesson) lesson.current = makeLessonEntry(currentPeriodLesson);
+    if (previousLesson) lesson.previous = makeLessonEntry(previousLesson);
+    if (nextLesson) lesson.next = makeLessonEntry(nextLesson);
+
 
     return {
       now,
@@ -581,92 +664,83 @@ class WebUntisScraper {
       lessons: currentDay.lessons,
       periods: currentDay.periods,
       breaks: currentDay.breaks,
-      period: period,
-      lesson: lesson,
-      isBefore: isBefore,
-      isBreak: isBreak,
-      isOver: isOver,
+      period,
+      lesson,
+      isBefore,
+      isBreak,
+      isOver,
     };
   }
-}
 
-function getWeekdayIndex() {
-  const today = new Date().getDay();
-
-  switch (today) {
-    case 1: return 0;
-    case 2: return 1;
-    case 3: return 2;
-    case 4: return 3;
-    case 5: return 4;
-    default: return null;
+  getWeekdayIndex() {
+    const day = new Date().getDay();
+    return day >= 1 && day <= 5 ? day - 1 : null;
   }
-}
 
-function getLessonTime(startPeriod, endPeriod) {
-  const lessonStartTime = periodSchedule[startPeriod].start;
-  const lessonEndTime = periodSchedule[endPeriod].end;
+  getLessonTime(startPeriod, endPeriod) {
+    return {
+      start: this.periodSchedule[startPeriod].start,
+      end: this.periodSchedule[endPeriod].end,
+    };
+  }
 
-  return { start: lessonStartTime, end: lessonEndTime };
-}
+  getPeriodTime(period) {
+    return {
+      start: period ? this.periodSchedule[period]?.start ?? null : null,
+      end: period ? this.periodSchedule[period]?.end ?? null : null,
+    };
+  }
 
-const periodSchedule = {
-  1:  { start: '07:45', end: '08:30' },
-  2:  { start: '08:30', end: '09:15' },
-  // Break: 09:15 - 09:30
-  3:  { start: '09:30', end: '10:15' },
-  4:  { start: '10:15', end: '11:00' },
-  // Break: 11:00 - 11:15
-  5:  { start: '11:15', end: '12:00' },
-  6:  { start: '12:00', end: '12:45' },
-  7:  { start: '12:45', end: '13:30' },
-  8:  { start: '13:30', end: '14:15' },
-  9:  { start: '14:15', end: '15:00' },
-  // Break: 15:00 - 15:15
-  10: { start: '15:15', end: '16:00' },
-  11: { start: '16:00', end: '16:45' },
-  12: { start: '16:45', end: '17:30' },
-  13: { start: '17:30', end: '18:15' },
-};
+  isValidTime24h(time) {
+    if (typeof time !== 'string') return false;
+    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(time)) return false;
+    const [h, m] = time.split(':').map(Number);
+    return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+  }
 
-function getPeriodTime(period) {
-  const periodStartTime = period ? periodSchedule[period]?.start : null;
-  const periodEndTime = period ? periodSchedule[period]?.end : null;
+  async test(resultLog = this.DEBUG, stringify = true) {
+    if (resultLog) {
+      
+      if (stringify) {
+        console.log('getDay:');
+        console.log(JSON.stringify(await this.getDay(2), null, 2));
 
-  return { start: periodStartTime, end: periodEndTime };
-}
+        console.log('getCurrentDay:');
+        console.log(JSON.stringify(await this.getCurrentDay(), null, 2));
 
-function isValidTime24h(time) {
-  if (typeof time !== 'string') return false;
+        console.log('getWeek:');
+        console.log(JSON.stringify(await this.getWeek(), null, 2));
 
-  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-  if (!timeRegex.test(time)) return false;
+        console.log('getCurrent:');
+        console.log(JSON.stringify(await this.getCurrent(), null, 2));
+      } else {
+        console.log('getDay:');
+        console.log(await this.getDay(2));
 
-  const [hours, minutes] = time.split(':').map(Number);
-  return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
+        console.log('getCurrentDay:');
+        console.log(await this.getCurrentDay());
+
+        console.log('getWeek:');
+        console.log(await this.getWeek());
+
+        console.log('getCurrent:');
+        console.log(await this.getCurrent());
+      } 
+    } else {
+      await this.getDay(2);
+      await this.getCurrentDay();
+      await this.getWeek();
+      await this.getCurrent();
+    }
+  }
 }
 
 async function test() {
   const scraper = new WebUntisScraper();
-  await scraper.init();
-
-  console.log('getDay:');
-  const day = await scraper.getDay(2);
-  console.log(JSON.stringify(day, null, 2));
-
-  console.log('getCurrentDay:');
-  const currentDay = await scraper.getCurrentDay();
-  console.log(JSON.stringify(currentDay, null, 2));
-
-  console.log('getWeek:');
-  const week = await scraper.getWeek();
-  console.log(JSON.stringify(week, null, 2));
-
-  console.log('getCurrent:');
-  const current = await scraper.getCurrent();
-  console.log(JSON.stringify(current, null, 2));
+  await scraper.open();
+  await scraper.test();
 }
 
-export { WebUntisScraper };
+export { Scraper, WebUntisScraper };
 
-//test();
+if (TEST_MODE) test();

@@ -4,7 +4,8 @@ import { createInterface } from "readline";
 import { spawn } from "child_process";
 
 const options = [
-  { label: "WebUntis", command: "node", args: ["webuntis/server.js"] }
+  { label: "WebUntis", command: "node", args: ["webuntis/server.js"] },
+  { label: "Something", command: "node", args: ["webuntis/server.js"] }
 ];
 
 let selected = 0;
@@ -15,7 +16,7 @@ process.stdin.resume();
 process.stdin.setEncoding("utf8");
 
 // Number of lines the menu occupies — used to overwrite in place
-const LINES = options.length + 4;
+const LINES = options.length + 10;
 
 function render(firstRender = false) {
   if (firstRender) {
@@ -24,14 +25,13 @@ function render(firstRender = false) {
   }
   process.stdout.write(`\x1B[${LINES}A`);
 
-  console.log(`\x1B[35m  ______ ________________  ______   ___________ 
+  const lines = [
+    `\x1B[35m  ______ ________________  ______   ___________ 
  /  ___// ___\\_  __ \\__  \\ \\____ \\_/ __ \\_  __ \\
  \\___ \\\\  \\___|  | \\// __ \\|  |_> >  ___/|  | \\/
 /____  >\\___  >__|  (____  /   __/ \\___  >__|   
      \\/     \\/           \\/|__|        \\/       
-\x1B[0m`);
-
-  const lines = [
+\x1B[0m`,
     "  Select an option:\n",
     ...options.map((opt, i) => {
       const cursor = i === selected ? "\x1B[36m❯\x1B[0m" : " ";
