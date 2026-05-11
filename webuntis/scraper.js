@@ -531,8 +531,8 @@ class WebUntisScraper extends Scraper {
       date,
       start: lessons[0]?.startTime ?? null,
       end: lessons[lessons.length - 1]?.endTime ?? null,
-      lessons,
       periods,
+      lessons,
       breaks,
     };
   }
@@ -661,8 +661,8 @@ class WebUntisScraper extends Scraper {
       date: currentDay.date,
       start: currentDay.start,
       end: currentDay.end,
-      lessons: currentDay.lessons,
       periods: currentDay.periods,
+      lessons: currentDay.lessons,
       breaks: currentDay.breaks,
       period,
       lesson,
