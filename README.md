@@ -8,6 +8,55 @@
 
 # scraper
 
+A lightweight local scraper for retrieving WebUntis timetable data and exposing it via a local API.
+
+---
+
+### ⚠️ Disclaimer
+
+This project is an unofficial tool and is not affiliated with, endorsed by, or connected to WebUntis or its operators.
+
+It is intended for personal, educational, and non-commercial use only.
+
+The scraper interacts with publicly accessible endpoints of WebUntis using user-provided credentials in order to retrieve timetable data and expose it via a local API.
+
+Users are responsible for ensuring that their use of this software complies with:
+- the terms of service of WebUntis
+- applicable school or institutional policies
+- local laws and regulations
+
+This project does not bypass authentication mechanisms, security measures, or access restrictions. It only accesses data that the authenticated user already has permission to view through the official WebUntis interface.
+
+The maintainers assume no liability for misuse, data loss, account restrictions, or any consequences arising from the use of this software.
+
+### 🧾 Warranty
+
+This software is provided "as is", without warranty of any kind, express or implied.  
+Use it at your own risk.
+
+### 🎯 Intended Use
+
+This tool is designed to run locally and provide a personal API for timetable access.
+
+It is not intended for:
+- public redistribution of WebUntis data
+- bypassing institutional restrictions
+- commercial use
+- high-frequency automated scraping
+
+### 🔐 Security Notice
+
+Users must provide their own WebUntis credentials via environment variables.
+
+Example `.env`:
+```bash
+WEBUNTIS_USERNAME="your.username"
+WEBUNTIS_PASSWORD="your.password"
+WEBUNTIS_URL="https://example.webuntis.com/WebUntis/index.do#/basic/login"
+```
+
+---
+
 ## 1. Installation
 
 1. Make sure Node.js and npm are installed.
@@ -51,19 +100,19 @@
 
 ## 3. Docker
 
-### Build
+#### Build
 
 ```bash
 docker compose up --build
 ```
 
-### Start
+#### Start
 
 ```bash
 docker compose up
 ```
 
-### Stop
+#### Stop
 
 ```bash
 docker compose down
