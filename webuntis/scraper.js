@@ -607,14 +607,14 @@ class WebUntisScraper extends Scraper {
       previousLesson = [...currentDay.lessons].reverse().find((l) => toMinutes(l.endTime) <= nowMinutes) ?? null;
       if (previousLesson) previousPeriod = previousLesson.endPeriod;
     } else {
-      previousLesson = previousLesson ?? previousPeriodLesson;
+      previousLesson = previousLesson ?? (previousPeriodLesson !== currentPeriodLesson ? previousPeriodLesson : null);
     }
 
     if (!nextPeriodLesson && !isOver) {
       nextLesson = currentDay.lessons.find((l) => toMinutes(l.startTime) > nowMinutes) ?? null;
       if (nextLesson) nextPeriod = nextLesson.startPeriod;
     } else {
-      nextLesson = nextLesson ?? nextPeriodLesson;
+      nextLesson = nextLesson ?? (nextPeriodLesson !== currentPeriodLesson ? nextPeriodLesson : null);
     }
 
     // ── Build output objects ─────────────────────
