@@ -128,3 +128,24 @@ docker compose up
 ```bash
 docker compose down
 ```
+
+## 🗺️ Roadmap
+
+Right now this repo is a WebUntis data pipeline.
+
+Planned future extensions for this project:
+
+- webuntis/ – timetable scraper (current)
+- idealo/ – price comparison scraper (planned)
+
+More connectors may follow as the system evolves.
+
+## 💡 Motivation
+
+This project started as a school-related idea.
+
+I wanted to access and work with my timetable in a more flexible way than the standard WebUntis interface allows. The goal was to understand how the data is structured and make it usable for personal tools and experiments.
+
+What began as a simple convenience project slowly turned into a small exploration of the system underneath. A bit of reverse engineering slipped in along the way.
+
+At some point, the idea expanded into connecting it with a train API to check the next train home directly based on my schedule.
