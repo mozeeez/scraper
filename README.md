@@ -27,6 +27,7 @@ It is intended for personal, educational, and non-commercial use only.
 The scraper interacts with publicly accessible endpoints of WebUntis using user-provided credentials in order to retrieve timetable data and expose it via a local API.
 
 Users are responsible for ensuring that their use of this software complies with:
+
 - the terms of service of WebUntis
 - applicable school or institutional policies
 - local laws and regulations
@@ -45,6 +46,7 @@ Use it at your own risk.
 This tool is designed to run locally and provide a personal API for timetable access.
 
 It is not intended for:
+
 - public redistribution of WebUntis data
 - bypassing institutional restrictions
 - commercial use
@@ -55,6 +57,7 @@ It is not intended for:
 Users must provide their own WebUntis credentials via environment variables.
 
 Example `.env`:
+
 ```bash
 WEBUNTIS_USERNAME="your.username"
 WEBUNTIS_PASSWORD="your.password"
@@ -96,10 +99,12 @@ WEBUNTIS_URL="https://example.webuntis.com/WebUntis/index.do#/basic/login"
    or
 
    From the `scraper` directory, start the WebUntis server:
+
    ```bash
    node webuntis/server.js
    ```
-2. The server will run at:
+
+1. The server will run at:
    ```text
    http://localhost:3000
    ```

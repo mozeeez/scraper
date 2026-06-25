@@ -5,7 +5,7 @@ import { spawn } from "child_process";
 
 const options = [
   { label: "WebUntis", command: "node", args: ["webuntis/server.js"] },
-  { label: "Something", command: "node", args: ["webuntis/server.js"] }
+  { label: "Something", command: "node", args: ["webuntis/server.js"] },
 ];
 
 let selected = 0;
@@ -35,7 +35,10 @@ function render(firstRender = false) {
     "  Select an option:\n",
     ...options.map((opt, i) => {
       const cursor = i === selected ? "\x1B[36m❯\x1B[0m" : " ";
-      const label  = i === selected ? `\x1B[1;36m${opt.label}\x1B[0m` : `\x1B[2m${opt.label}\x1B[0m`;
+      const label =
+        i === selected
+          ? `\x1B[1;36m${opt.label}\x1B[0m`
+          : `\x1B[2m${opt.label}\x1B[0m`;
       return `  ${cursor} ${label}`;
     }),
     "",
@@ -49,7 +52,9 @@ function render(firstRender = false) {
 function run(opt) {
   // Erase only the menu block, then hand off to the server
   process.stdout.write(`\x1B[${LINES}A\x1B[J`);
-  console.log(`\x1B[36m▶ Starting:\x1B[0m ${opt.command} ${opt.args.join(" ")}\n`);
+  console.log(
+    `\x1B[36m▶ Starting:\x1B[0m ${opt.command} ${opt.args.join(" ")}\n`,
+  );
   process.stdin.setRawMode(false);
   rl.close();
 
@@ -58,9 +63,18 @@ function run(opt) {
 }
 
 process.stdin.on("data", (key) => {
-  if (key === "\u0003") { process.stdout.write("\n"); process.exit(); }
-  if (key === "\u001B[A") { selected = (selected - 1 + options.length) % options.length; render(); }
-  if (key === "\u001B[B") { selected = (selected + 1) % options.length; render(); }
+  if (key === "\u0003") {
+    process.stdout.write("\n");
+    process.exit();
+  }
+  if (key === "\u001B[A") {
+    selected = (selected - 1 + options.length) % options.length;
+    render();
+  }
+  if (key === "\u001B[B") {
+    selected = (selected + 1) % options.length;
+    render();
+  }
   if (key === "\r" || key === "\n") run(options[selected]);
 });
 

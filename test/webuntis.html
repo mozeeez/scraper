@@ -15,7 +15,7 @@
       }
       * {
         box-sizing: border-box;
-        font-family: 'Ubuntu Mono', monospace;
+        font-family: "Ubuntu Mono", monospace;
       }
       html {
         background-color: var(--bg-color);
@@ -110,50 +110,53 @@
     </div>
 
     <script>
-      const API_KEY = 'lvBÔH@ûQ>t;ºCù\P;t}^ÁØj;)WìvÝÊÔ×$ÔÍê©è±]<ÀGÑ¦So¯¹U4ì¤Á*°5ÍÁÐê\ê¿ÐÈkQx^áÕhTAûªnçÅ¶ÌbMåó#ÊØa¹L(ùçú§ß="ïK»KãTþYo÷ÄR÷9ÿ¿áàÛw;¯|?nã\÷';
+      const API_KEY =
+        'lvBÔH@ûQ>t;ºCù\P;t}^ÁØj;)WìvÝÊÔ×$ÔÍê©è±]<ÀGÑ¦So¯¹U4ì¤Á*°5ÍÁÐê\ê¿ÐÈkQx^áÕhTAûªnçÅ¶ÌbMåó#ÊØa¹L(ùçú§ß="ïK»KãTþYo÷ÄR÷9ÿ¿áàÛw;¯|?nã\÷';
 
       async function fetchWithKey(url) {
         return fetch(url, {
           headers: {
-            'x-api-key': API_KEY,
+            "x-api-key": API_KEY,
           },
         });
       }
 
       async function testAllAPIs() {
         await testGetStatus();
-        document.getElementById('weekdayIndex').value = 2;
+        document.getElementById("weekdayIndex").value = 2;
         await testGetDay();
         await testGetCurrentDay();
         await testGetWeek();
         await testGetCurrent();
-        document.getElementById('allResults').innerHTML =
-          '<p>All APIs tested. Check individual results above.</p>';
+        document.getElementById("allResults").innerHTML =
+          "<p>All APIs tested. Check individual results above.</p>";
       }
 
       async function testGetStatus() {
         try {
-          const response = await fetchWithKey('http://localhost:3000/api/webuntis');
+          const response = await fetchWithKey(
+            "http://localhost:3000/api/webuntis",
+          );
           const data = await response.json();
-          document.getElementById('getStatusResult').innerHTML =
-            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+          document.getElementById("getStatusResult").innerHTML =
+            "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
         } catch (error) {
-          document.getElementById('getStatusResult').innerHTML =
+          document.getElementById("getStatusResult").innerHTML =
             `<pre>Error: ${error.message}</pre>`;
         }
       }
 
       async function testGetDay() {
-        const weekdayIndex = document.getElementById('weekdayIndex').value;
+        const weekdayIndex = document.getElementById("weekdayIndex").value;
         try {
           const response = await fetchWithKey(
-            `http://localhost:3000/api/webuntis/getDay?weekdayIndex=${weekdayIndex}`
+            `http://localhost:3000/api/webuntis/getDay?weekdayIndex=${weekdayIndex}`,
           );
           const data = await response.json();
-          document.getElementById('getDayResult').innerHTML =
-            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+          document.getElementById("getDayResult").innerHTML =
+            "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
         } catch (error) {
-          document.getElementById('getDayResult').innerHTML =
+          document.getElementById("getDayResult").innerHTML =
             `<pre>Error: ${error.message}</pre>`;
         }
       }
@@ -161,13 +164,13 @@
       async function testGetCurrentDay() {
         try {
           const response = await fetchWithKey(
-            'http://localhost:3000/api/webuntis/getCurrentDay'
+            "http://localhost:3000/api/webuntis/getCurrentDay",
           );
           const data = await response.json();
-          document.getElementById('getCurrentDayResult').innerHTML =
-            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+          document.getElementById("getCurrentDayResult").innerHTML =
+            "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
         } catch (error) {
-          document.getElementById('getCurrentDayResult').innerHTML =
+          document.getElementById("getCurrentDayResult").innerHTML =
             `<pre>Error: ${error.message}</pre>`;
         }
       }
@@ -175,30 +178,30 @@
       async function testGetWeek() {
         try {
           const response = await fetchWithKey(
-            'http://localhost:3000/api/webuntis/getWeek'
+            "http://localhost:3000/api/webuntis/getWeek",
           );
           const data = await response.json();
-          document.getElementById('getWeekResult').innerHTML =
-            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+          document.getElementById("getWeekResult").innerHTML =
+            "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
         } catch (error) {
-          document.getElementById('getWeekResult').innerHTML =
+          document.getElementById("getWeekResult").innerHTML =
             `<pre>Error: ${error.message}</pre>`;
         }
       }
 
       async function testGetCurrent() {
-        const currentTime = document.getElementById('currentTime').value;
+        const currentTime = document.getElementById("currentTime").value;
         const url = currentTime
           ? `http://localhost:3000/api/webuntis/getCurrent?currentTime=${encodeURIComponent(currentTime)}`
-          : 'http://localhost:3000/api/webuntis/getCurrent';
+          : "http://localhost:3000/api/webuntis/getCurrent";
 
         try {
           const response = await fetchWithKey(url);
           const data = await response.json();
-          document.getElementById('getCurrentResult').innerHTML =
-            '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+          document.getElementById("getCurrentResult").innerHTML =
+            "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
         } catch (error) {
-          document.getElementById('getCurrentResult').innerHTML =
+          document.getElementById("getCurrentResult").innerHTML =
             `<pre>Error: ${error.message}</pre>`;
         }
       }
