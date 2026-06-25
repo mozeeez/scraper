@@ -18,7 +18,8 @@ This project retrieves timetable data from a user's WebUntis account and makes i
 
 ---
 
-### ⚠️ Disclaimer
+<details>
+<summary><strong>⚠️ Disclaimer</strong></summary>
 
 This project is an unofficial tool and is not affiliated with, endorsed by, or connected to WebUntis or its operators.
 
@@ -36,12 +37,18 @@ This project does not bypass authentication mechanisms, security measures, or ac
 
 The maintainers assume no liability for misuse, data loss, account restrictions, or any consequences arising from the use of this software.
 
-### 🧾 Warranty
+</details>
+
+<details>
+<summary><strong>🧾 Warranty</strong></summary>
 
 This software is provided "as is", without warranty of any kind, express or implied.  
 Use it at your own risk.
 
-### 🎯 Intended Use
+</details>
+
+<details>
+<summary><strong>🎯 Intended Use</strong></summary>
 
 This tool is designed to run locally and provide a personal API for timetable access.
 
@@ -52,7 +59,10 @@ It is not intended for:
 - commercial use
 - high-frequency automated scraping
 
-### 🔐 Security Notice
+</details>
+
+<details>
+<summary><strong>🔐 Security Notice</strong></summary>
 
 Users must provide their own WebUntis credentials via environment variables.
 
@@ -63,6 +73,8 @@ WEBUNTIS_USERNAME="your.username"
 WEBUNTIS_PASSWORD="your.password"
 WEBUNTIS_URL="https://example.webuntis.com/WebUntis/index.do#/basic/login"
 ```
+
+</details>
 
 ---
 
