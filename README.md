@@ -10,6 +10,12 @@
 
 A lightweight local scraper for retrieving WebUntis timetable data and exposing it via a local API.
 
+## What is WebUntis?
+
+WebUntis is a web-based school management platform used by many schools to provide students, teachers, and parents with access to timetables, substitutions, room changes, and other school-related information.
+
+This project retrieves timetable data from a user's WebUntis account and makes it available through a local API for personal use.
+
 ---
 
 ### ⚠️ Disclaimer
