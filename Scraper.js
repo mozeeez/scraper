@@ -7,20 +7,21 @@ dotenv.config();
 // Initialize stealth plugin
 chromium.use(stealth());
 
-const DEBUG = false;
-const TEST_MODE = false;
+const DEBUG = process.env.DEBUG === "true";
+const TEST_MODE = process.env.TEST_MODE === "true";
 
 class Scraper {
+  static DEBUG = DEBUG;
+  static TEST_MODE = TEST_MODE;
+
   constructor() {
     this.id = Math.random().toString(36).substring(2, 8);
     this.browser = null;
     this.page = null;
     this.count = 0;
 
-    this.DEBUG = DEBUG;
-    this.TEST_MODE = TEST_MODE;
     console.log(
-      `Scraper [${this.id}] initialized with DEBUG=${this.DEBUG} and TEST_MODE=${this.TEST_MODE}`,
+      `Scraper [${this.id}] initialized with DEBUG=${Scraper.DEBUG} and TEST_MODE=${Scraper.TEST_MODE}`,
     );
     this.KEEP_OPEN = true;
 
@@ -51,7 +52,7 @@ class Scraper {
 
   async launchBrowser() {
     this.browser = await chromium.launch({
-      headless: this.DEBUG ? false : true,
+      headless: Scraper.DEBUG ? false : true,
       args: ["--disable-dev-shm-usage"],
     });
   }
@@ -71,7 +72,7 @@ class Scraper {
   async debugScreenshot(name) {
     const time = new Date().toLocaleTimeString(undefined, { hour12: false });
 
-    if (this.DEBUG && this.page) {
+    if (Scraper.DEBUG && this.page) {
       await this.page.screenshot({ path: `debug_${name}_${time}.png` });
     }
   }
