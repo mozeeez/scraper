@@ -110,13 +110,13 @@
     </div>
 
     <script>
-      const API_KEY =
-        'lvBÔH@ûQ>t;ºCù\P;t}^ÁØj;)WìvÝÊÔ×$ÔÍê©è±]<ÀGÑ¦So¯¹U4ì¤Á*°5ÍÁÐê\ê¿ÐÈkQx^áÕhTAûªnçÅ¶ÌbMåó#ÊØa¹L(ùçú§ß="ïK»KãTþYo÷ÄR÷9ÿ¿áàÛw;¯|?nã\÷';
+      const API_KEY = "API_KEY_HERE"; // Replace with your actual API key or use environment variable
+      const HOST = `http://localhost:${WEBUNTIS_PORT || 3000}`; // Change this to your server's host if needed
 
       async function fetchWithKey(url) {
         return fetch(url, {
           headers: {
-            "x-api-key": API_KEY,
+            "x-api-key": WEBUNTIS_API_KEY || API_KEY,
           },
         });
       }
@@ -134,9 +134,7 @@
 
       async function testGetStatus() {
         try {
-          const response = await fetchWithKey(
-            "http://localhost:3000/api/webuntis",
-          );
+          const response = await fetchWithKey(`${HOST}/api/webuntis`);
           const data = await response.json();
           document.getElementById("getStatusResult").innerHTML =
             "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
@@ -150,7 +148,7 @@
         const weekdayIndex = document.getElementById("weekdayIndex").value;
         try {
           const response = await fetchWithKey(
-            `http://localhost:3000/api/webuntis/getDay?weekdayIndex=${weekdayIndex}`,
+            `${HOST}/api/webuntis/getDay?weekdayIndex=${weekdayIndex}`,
           );
           const data = await response.json();
           document.getElementById("getDayResult").innerHTML =
@@ -164,7 +162,7 @@
       async function testGetCurrentDay() {
         try {
           const response = await fetchWithKey(
-            "http://localhost:3000/api/webuntis/getCurrentDay",
+            `${HOST}/api/webuntis/getCurrentDay`,
           );
           const data = await response.json();
           document.getElementById("getCurrentDayResult").innerHTML =
@@ -177,9 +175,7 @@
 
       async function testGetWeek() {
         try {
-          const response = await fetchWithKey(
-            "http://localhost:3000/api/webuntis/getWeek",
-          );
+          const response = await fetchWithKey(`${HOST}/api/webuntis/getWeek`);
           const data = await response.json();
           document.getElementById("getWeekResult").innerHTML =
             "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
@@ -192,8 +188,8 @@
       async function testGetCurrent() {
         const currentTime = document.getElementById("currentTime").value;
         const url = currentTime
-          ? `http://localhost:3000/api/webuntis/getCurrent?currentTime=${encodeURIComponent(currentTime)}`
-          : "http://localhost:3000/api/webuntis/getCurrent";
+          ? `${HOST}/api/webuntis/getCurrent?currentTime=${encodeURIComponent(currentTime)}`
+          : `${HOST}/api/webuntis/getCurrent`;
 
         try {
           const response = await fetchWithKey(url);
