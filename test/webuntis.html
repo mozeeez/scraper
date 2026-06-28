@@ -111,12 +111,12 @@
 
     <script>
       const API_KEY = "API_KEY_HERE"; // Replace with your actual API key or use environment variable
-      const HOST = `http://localhost:${WEBUNTIS_PORT || 3000}`; // Change this to your server's host if needed
+      const HOST = `http://localhost:3000`; // Change this to your server's host if needed
 
       async function fetchWithKey(url) {
         return fetch(url, {
           headers: {
-            "x-api-key": WEBUNTIS_API_KEY || API_KEY,
+            "x-api-key": API_KEY,
           },
         });
       }
